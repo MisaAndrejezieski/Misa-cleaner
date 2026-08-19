@@ -1,14 +1,13 @@
 """
-MISA-CLEANER - Efeito Matrix Rain - TELA CHEIA
-SOMENTE A CHUVA DE CÓDIGO! NADA MAIS!
+MISA-CLEANER - Efeito Matrix Rain
+SOMENTE A CHUVA DE CÓDIGO! SEM TEXTOS, SEM LOGS, SEM NADA!
 """
 import random
 import tkinter as tk
-from typing import Dict, List
 
 
 class MatrixRain(tk.Canvas):
-    """CHUVA MATRIX - TELA INTEIRA"""
+    """SÓ A CHUVA! NADA MAIS!"""
     
     CARACTERES = [
         '日','本','語','の','文','字','を','使','っ','て','い','ま','す',
@@ -109,73 +108,3 @@ class MatrixRain(tk.Canvas):
                 )
         
         self.after(30, self._animar)
-
-
-class MatrixFullscreen:
-    """TELA CHEIA APENAS COM A CHUVA MATRIX E LOGS"""
-    
-    def __init__(self, parent):
-        self.parent = parent
-        
-        # CRIA A CHUVA OCUPANDO A TELA INTEIRA
-        self.rain = MatrixRain(parent)
-        
-        # TEXTO SOBREPOSTO
-        self.text = tk.Text(
-            parent,
-            bg='#000000',
-            fg='#00ff41',
-            font=('Consolas', 11),
-            insertbackground='#00ff41',
-            relief='flat',
-            highlightthickness=0,
-            borderwidth=0,
-            wrap='word',
-            state='normal',
-            spacing1=2,
-            spacing2=2
-        )
-        self.text.place(x=20, y=20, relwidth=0.96, relheight=0.96)
-        
-        # CORES
-        self.text.tag_config('INFO', foreground='#6bcfff')
-        self.text.tag_config('SUCESSO', foreground='#6bffb8')
-        self.text.tag_config('AVISO', foreground='#ffe66d')
-        self.text.tag_config('ERRO', foreground='#ff6b6b')
-        self.text.tag_config('CRITICO', foreground='#ff1744', font=('Consolas', 11, 'bold'))
-        self.text.tag_config('destaque', foreground='#ff6b9d', font=('Consolas', 11, 'bold'))
-        
-        self.linhas = 0
-        self.max_linhas = 200
-        
-        self.parent.update_idletasks()
-        
-    def escrever(self, texto: str, nivel: str = 'INFO', destaque: bool = False):
-        """ESCREVE TEXTO SOBRE A CHUVA"""
-        try:
-            self.text.config(state='normal')
-            
-            if self.linhas > self.max_linhas:
-                self.text.delete('1.0', f'{self.linhas - self.max_linhas}.0')
-                self.linhas = self.max_linhas
-            
-            tag = 'destaque' if destaque else nivel
-            self.text.insert('end', texto + '\n', tag)
-            self.linhas += 1
-            
-            self.text.see('end')
-            self.text.config(state='disabled')
-            
-        except:
-            pass
-    
-    def iniciar(self):
-        self.rain.iniciar()
-    
-    def parar(self):
-        self.rain.parar()
-    
-    def destruir(self):
-        self.parar()
-        self.rain.destroy()
-        self.text.destroy()

@@ -23,9 +23,8 @@ class MatrixRain(tk.Canvas):
         super().__init__(parent, bg='#000000', highlightthickness=0)
         self.animando = False
         self.colunas = []
-        self.parent = parent
         
-        # 🌟 OCUPA A TELA INTEIRA
+        # OCUPA A TELA INTEIRA
         self.place(x=0, y=0, relwidth=1, relheight=1)
         
         self.bind('<Configure>', self._reinicar)
@@ -118,10 +117,10 @@ class MatrixFullscreen:
     def __init__(self, parent):
         self.parent = parent
         
-        # 🌟 CRIA A CHUVA OCUPANDO A TELA INTEIRA
+        # CRIA A CHUVA OCUPANDO A TELA INTEIRA
         self.rain = MatrixRain(parent)
         
-        # 🌟 TEXTO SOBREPOSTO (COM FUNDO PRETO PARA LEGIBILIDADE)
+        # TEXTO SOBREPOSTO
         self.text = tk.Text(
             parent,
             bg='#000000',
@@ -136,7 +135,6 @@ class MatrixFullscreen:
             spacing1=2,
             spacing2=2
         )
-        # 🌟 TEXTO OCUPA A TELA INTEIRA (COM UMA BORDA PARA NÃO FICAR COLADO)
         self.text.place(x=20, y=20, relwidth=0.96, relheight=0.96)
         
         # CORES

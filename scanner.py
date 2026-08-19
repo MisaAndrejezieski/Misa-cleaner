@@ -22,31 +22,25 @@ class Scanner:
             os.path.expanduser('~')
         ]
         
-        # ==========================================
-        # 🛡️ LISTA DE PASTAS IGNORADAS (REFORÇADA)
-        # ==========================================
+        # 🛡️ LISTA DE PASTAS E ARQUIVOS IGNORADOS (BLOQUEIO TOTAL)
         self.pastas_ignoradas = [
-            # Pastas críticas do Windows
+            # Sistema crítico
             "C:\\Windows", "C:\\System32", "C:\\$Recycle.Bin",
             "C:\\System Volume Information", "C:\\Windows\\WinSxS", "C:\\Windows\\Installer",
             "C:\\Users\\Public", os.path.join(os.path.expanduser('~'), 'AppData', 'Local', 'Temp'),
             
-            # 🟢 BLOQUEIO DE APLICATIVOS QUE GERAM ERRO 267
-            "GitHubDesktop",          # GitHub Desktop
-            "Olk",                    # App da Microsoft (Outlook/Teams)
-            "Clipchamp",              # Editor de vídeo da Microsoft
-            "EBWebView",              # WebView dos apps da Microsoft
-            "pywebview",              # WebView do Python
-            "Microsoft\\Olk",         # Caminho completo da Microsoft Olk
-            "Packages\\Clipchamp",    # Caminho completo do Clipchamp
+            # Navegadores e WebViews (causam erro 267)
+            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Google', 'Chrome'),
+            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Microsoft', 'Edge'),
+            os.path.join(os.environ.get('APPDATA', ''), 'pywebview'),
+            "EBWebView", "GitHubDesktop", "Olk", "Clipchamp",
             
-            # 🟢 IGNORAR PASTAS DE DESENVOLVIMENTO E CACHE
+            # Desenvolvimento
             os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Programs', 'Microsoft VS Code'),
             os.path.join(os.environ.get('APPDATA', ''), 'Code'),
-            "node_modules", ".git", ".venv", "__pycache__"
+            "node_modules", ".git", ".venv", "__pycache__", "dist", "build"
         ]
-        # ==========================================
-
+        
         # Programas conhecidos
         self.programas_conhecidos = [
             'Adobe', 'Photoshop', 'Illustrator', 'Premiere', 'AfterEffects',
@@ -64,6 +58,19 @@ class Scanner:
             'MySQL', 'PostgreSQL', 'MongoDB', 'Redis',
             'VirtualBox', 'VMware', 'QEMU'
         ]
+
+    def _deve_ignorar(self, caminho):
+        """🛡️ Verifica se qualquer parte do caminho está na lista de ignorados"""
+        if not caminho:
+            return True
+            
+        caminho_lower = caminho.lower()
+        for ignorado in self.pastas_ignoradas:
+            if not ignorado:
+                continue
+            if ignorado.lower() in caminho_lower:
+                return True
+        return False
 
     def verificar_se_programa_existe(self, nome_programa):
         for pasta in self.pastas_sistema[:3]:
@@ -85,7 +92,6 @@ class Scanner:
                 return True
         except:
             pass
-            
         return False
 
     def encontrar_resquicios_programas(self, callback_progresso=None, callback_resultado=None):
@@ -101,10 +107,12 @@ class Scanner:
                         return resultados
                         
                     caminho_item = os.path.join(pasta_base, item)
-                    if not os.path.isdir(caminho_item):
-                        continue
                     
+                    # 🛡️ BLOQUEIO TOTAL: Se for ignorado, PULA TUDO (pasta e arquivos dentro dela)
                     if self._deve_ignorar(caminho_item):
+                        continue
+                        
+                    if not os.path.isdir(caminho_item):
                         continue
                         
                     for programa in self.programas_conhecidos:
@@ -152,6 +160,7 @@ class Scanner:
         if self.parar_varredura:
             return
         
+        # 🛡️ BLOQUEIO ANTES DE ENTRAR NA PASTA
         if self._deve_ignorar(caminho):
             return
             
@@ -161,6 +170,11 @@ class Scanner:
                     return
                     
                 item_path = os.path.join(caminho, item)
+                
+                # 🛡️ BLOQUEIO PARA ARQUIVOS DENTRO DE PASTAS IGNORADAS
+                # Isso resolve o erro 267
+                if self._deve_ignorar(item_path):
+                    continue
                 
                 try:
                     ultimo_acesso = datetime.fromtimestamp(os.stat(item_path).st_atime)
@@ -183,6 +197,7 @@ class Scanner:
                         self._escavar_obsoletos(item_path, data_limite, resultados, callback_progresso, callback_resultado)
                         
                 except (PermissionError, OSError):
+                    # Ignora silenciosamente erros de permissão de arquivos individuais
                     continue
                     
             if callback_progresso:
@@ -231,6 +246,7 @@ class Scanner:
         if self.parar_varredura or contador >= limite:
             return contador
             
+        # 🛡️ BLOQUEIO TOTAL
         if self._deve_ignorar(caminho):
             return contador
             
@@ -240,6 +256,10 @@ class Scanner:
                     return contador
                     
                 item_path = os.path.join(caminho, item)
+                
+                # 🛡️ BLOQUEIO DE ARQUIVOS INDIVIDUAIS
+                if self._deve_ignorar(item_path):
+                    continue
                 
                 if os.path.isfile(item_path):
                     try:
@@ -265,34 +285,6 @@ class Scanner:
             pass
             
         return contador
-
-    def _deve_ignorar(self, caminho):
-        """
-        🛡️ Função reforçada para verificar se um caminho deve ser ignorado.
-        Agora verifica se qualquer parte do caminho contém as pastas problemáticas.
-        """
-        if not caminho:
-            return True
-            
-        # Normaliza o caminho para minúsculas para comparação segura
-        caminho_lower = caminho.lower()
-        
-        for ignorado in self.pastas_ignoradas:
-            if not ignorado:
-                continue
-                
-            ignorado_lower = ignorado.lower()
-            
-            # Verifica se o caminho começa com a pasta ignorada
-            if caminho_lower.startswith(ignorado_lower):
-                return True
-                
-            # Verifica se o nome da pasta ignorada está contida em algum lugar do caminho
-            # Isso resolve o problema de pastas dentro de AppData/Roaming/Local
-            if ignorado_lower in caminho_lower:
-                return True
-                
-        return False
 
     def calcular_tamanho(self, caminho):
         total = 0

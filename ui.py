@@ -3,7 +3,7 @@ MISA-CLEANER - Interface Matrix Imersiva
 COM EFEITO MATRIX REAL EM TELA CHEIA DURANTE A VARREDURA
 """
 import os
-import subprocess  # 🔧 CORRIGIDO: importação adicionada
+import subprocess
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
@@ -70,18 +70,19 @@ class MisaCleanerUI:
         
     def _on_log(self, mensagem: str, nivel: str = LogNivel.INFO):
         """Callback do logger para exibir na UI"""
+        # Escreve no terminal principal
         if hasattr(self, 'terminal') and self.terminal:
             destaque = nivel in [LogNivel.SUCESSO, LogNivel.CRITICO]
             self._escrever_terminal(f">> {mensagem}", nivel, destaque)
         
-        # Se o Matrix Overlay estiver ativo, também escreve lá
+        # 🌟 ESCREVE NO MATRIX OVERLAY (se estiver ativo)
         if self.matrix_overlay and self.matrix_overlay.winfo_exists():
             destaque = nivel in [LogNivel.SUCESSO, LogNivel.CRITICO]
             self.matrix_overlay.escrever(f">> {mensagem}", nivel, destaque)
             
     def _setup_ui(self):
         """Constrói a interface completa"""
-        # Frame principal
+        # 🌟 Frame principal que será ocultado durante a varredura
         self.main_frame = tk.Frame(self.root, bg=self.cores['bg'])
         self.main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=15)
         
@@ -397,34 +398,52 @@ class MisaCleanerUI:
             bg=self.cores['bg']
         ).pack(side=tk.RIGHT)
 
-    # ===== ATIVAÇÃO DO EFEITO MATRIX =====
+    # ===== 🌟 CORREÇÃO: ATIVAÇÃO DO EFEITO MATRIX =====
     
     def _ativar_matrix_overlay(self):
-        """Ativa o efeito Matrix em tela cheia durante a varredura"""
+        """Ativa o efeito Matrix em tela cheia - OCULTA A UI"""
         if self.matrix_overlay and self.matrix_overlay.winfo_exists():
             return
-            
-        # Cria o overlay em tela cheia
-        self.matrix_overlay = MatrixOverlay(self.root)
-        self.matrix_overlay.place(x=0, y=0, relwidth=1, relheight=1)
-        self.matrix_overlay.lift()  # Traz para frente
         
-        # Inicia a chuva
+        # 🌟 1. OCULTA A UI PRINCIPAL (main_frame)
+        if hasattr(self, 'main_frame') and self.main_frame:
+            self.main_frame.pack_forget()  # Remove da tela
+        
+        # 🌟 2. CRIA O MATRIX OVERLAY OCUPANDO A TELA INTEIRA
+        self.matrix_overlay = MatrixOverlay(self.root, bg='#000000')
+        self.matrix_overlay.place(x=0, y=0, relwidth=1, relheight=1)
+        
+        # 🌟 3. TRAZ PARA O PRIMEIRO PLANO
+        self.matrix_overlay.lift()
+        self.matrix_overlay.focus_force()
+        
+        # 🌟 4. INICIA A CHUVA
         self.matrix_overlay.iniciar_rain()
         
-        # Mensagem inicial no overlay
+        # 🌟 5. MENSAGEM INICIAL NO OVERLAY
         self.matrix_overlay.escrever("╔══════════════════════════════════════════════════╗", "INFO")
         self.matrix_overlay.escrever("║     🌟 M A T R I X   M O D E   A T I V O     ║", "SUCESSO")
         self.matrix_overlay.escrever("╚══════════════════════════════════════════════════╝", "INFO")
         self.matrix_overlay.escrever("")
         self.matrix_overlay.escrever(">> A CHUVA DE CÓDIGO ESTÁ CAINDO...", "INFO")
+        self.matrix_overlay.escrever(">> VARREDURA EM ANDAMENTO...", "INFO")
+        
+        # 🌟 6. ATUALIZA A JANELA
+        self.root.update_idletasks()
         
     def _desativar_matrix_overlay(self):
-        """Desativa o efeito Matrix"""
+        """Desativa o efeito Matrix - RESTAURA A UI"""
+        # 🌟 1. PARA A CHUVA E DESTROI O OVERLAY
         if self.matrix_overlay and self.matrix_overlay.winfo_exists():
             self.matrix_overlay.parar_rain()
             self.matrix_overlay.destroy()
             self.matrix_overlay = None
+        
+        # 🌟 2. RESTAURA A UI PRINCIPAL (main_frame)
+        if hasattr(self, 'main_frame') and self.main_frame:
+            self.main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=15)
+            self.main_frame.lift()
+            self.root.update_idletasks()
             
     # ===== LÓGICA DE INTERAÇÃO =====
     
@@ -477,7 +496,7 @@ class MisaCleanerUI:
             messagebox.showerror("Erro", f"Não foi possível abrir o caminho:\n{e}")
             
     def iniciar_varredura(self):
-        """Inicia a varredura com EFEITO MATRIX"""
+        """Inicia a varredura com EFEITO MATRIX EM TELA CHEIA"""
         if self.varrendo:
             return
             
@@ -487,7 +506,7 @@ class MisaCleanerUI:
         self.result_count.config(text="(0)")
         self.resultados = []
         
-        # ATIVA O EFEITO MATRIX EM TELA CHEIA
+        # 🌟 ATIVA O EFEITO MATRIX EM TELA CHEIA (OCULTA A UI)
         self._ativar_matrix_overlay()
         
         self.varrendo = True
@@ -554,7 +573,7 @@ class MisaCleanerUI:
             
         self.result_count.config(text=f"({total})")
         
-        # DESATIVA O EFEITO MATRIX
+        # 🌟 DESATIVA O EFEITO MATRIX (RESTAURA A UI)
         self._desativar_matrix_overlay()
         
         # Mensagem final
@@ -577,7 +596,7 @@ class MisaCleanerUI:
         self.btn_parar.config(state=tk.DISABLED)
         self.varrendo = False
         
-        # DESATIVA O EFEITO MATRIX
+        # 🌟 DESATIVA O EFEITO MATRIX (RESTAURA A UI)
         self._desativar_matrix_overlay()
         
     def deletar_selecionados(self):

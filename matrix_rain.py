@@ -1,13 +1,13 @@
 """
 MISA-CLEANER - Efeito Matrix Rain
-EXATAMENTE IGUAL AO FILME - LENTA, DENSA E FLUIDA
+ESTILO FILME - CARACTERES FIXOS, DESCENDO SUAVEMENTE
 """
 import random
 import tkinter as tk
 
 
 class MatrixRain(tk.Canvas):
-    """CHUVA MATRIX - IGUAL AO FILME"""
+    """CHUVA MATRIX - CARACTERES FIXOS DESCENDO"""
     
     CARACTERES = [
         '日','本','語','の','文','字','を','使','っ','て','い','ま','す',
@@ -29,24 +29,28 @@ class MatrixRain(tk.Canvas):
         self._inicializar()
         
     def _inicializar(self):
-        """INICIALIZA A CHUVA - ESTILO FILME"""
+        """INICIALIZA A CHUVA - CARACTERES FIXOS"""
         self.update_idletasks()
         largura = max(self.winfo_width(), 800)
         altura = max(self.winfo_height(), 600)
         
-        # 🌟 COLUNAS BEM PRÓXIMAS (DENSAS IGUAL AO FILME)
-        num_colunas = largura // 12  # BEM DENSAS!
+        # DENSIDADE IGUAL AO FILME
+        num_colunas = largura // 12
         
         self.colunas = []
         for _ in range(num_colunas):
-            # 🌟 TODAS COM A MESMA VELOCIDADE (UNIFORME IGUAL AO FILME)
-            velocidade = 0.5  # VELOCIDADE CONSTANTE E LENTA
+            tamanho = random.randint(15, 35)
+            
+            # 🌟 CRIA UMA LISTA DE CARACTERES FIXOS PARA ESTA COLUNA
+            caracteres_fixos = [random.choice(self.CARACTERES) for _ in range(tamanho)]
             
             self.colunas.append({
                 'x': random.randint(0, largura),
                 'y': random.randint(-altura, altura),
-                'vel': velocidade,
-                'tam': random.randint(15, 40)  # COLUNAS BEM LONGAS
+                'vel': 0.4,  # VELOCIDADE LENTA E CONSTANTE
+                'tam': tamanho,
+                'chars': caracteres_fixos,  # 🌟 CARACTERES FIXOS!
+                'offset': random.randint(0, 10)  # PEQUENA VARIAÇÃO
             })
     
     def _reinicar(self, event):
@@ -73,25 +77,28 @@ class MatrixRain(tk.Canvas):
         altura = max(self.winfo_height(), 600)
         
         for col in self.colunas:
-            # 🌟 MOVIMENTO UNIFORME E LENTO
+            # DESCE LENTAMENTE
             col['y'] += col['vel']
             
+            # SE SAIR DA TELA, VOLTA AO TOPO
             if col['y'] > altura + 50:
                 col['y'] = random.randint(-50, -10)
                 col['x'] = random.randint(0, largura)
-                col['tam'] = random.randint(15, 40)
+                # 🌟 NOVOS CARACTERES FIXOS AO REINICIAR
+                col['chars'] = [random.choice(self.CARACTERES) for _ in range(col['tam'])]
             
-            # 🌟 DESENHA A COLUNA INTEIRA DE UMA VEZ (CASCATA CONTÍNUA)
+            # DESENHA A COLUNA COM CARACTERES FIXOS
             for i in range(col['tam']):
-                y = col['y'] - (i * 16)  # ESPAÇAMENTO ENTRE CARACTERES
+                y = col['y'] - (i * 16)
                 if y < -10 or y > altura:
                     continue
                 
-                char = random.choice(self.CARACTERES)
+                # 🌟 USA O CARACTERE FIXO DA LISTA (NÃO MUDAM!)
+                char = col['chars'][i]
                 
-                # 🌟 GRADIENTE DE VERDE (CABEÇA BRILHANTE, CAUSA ESCURA)
+                # GRADIENTE DE VERDE
                 if i == 0:
-                    cor = '#00ff41'  # BRILHO MÁXIMO
+                    cor = '#00ff41'
                     size = 14
                 elif i == 1:
                     cor = '#00dd33'
@@ -100,13 +107,12 @@ class MatrixRain(tk.Canvas):
                     cor = '#00bb22'
                     size = 12
                 else:
-                    # ESCURECE GRADUALMENTE
                     v = max(0, 1.0 - (i / col['tam']))
                     g = int(180 * v)
                     cor = f'#00{g:02x}00'
                     size = 11
                 
-                # 🌟 EFEITO DE BRILHO ALEATÓRIO NA CABEÇA (IGUAL AO FILME)
+                # EFEITO DE BRILHO NA CABEÇA
                 if i == 0 and random.random() < 0.08:
                     cor = '#88ff88'
                     size = 16
@@ -118,5 +124,5 @@ class MatrixRain(tk.Canvas):
                     font=('Consolas', size, 'bold')
                 )
         
-        # 🌟 FRAME MAIS LENTO = 60ms (16 FPS) - FLUIDO E CINEMATOGRÁFICO
-        self.after(60, self._animar)
+        # 50ms = 20 FPS
+        self.after(50, self._animar)

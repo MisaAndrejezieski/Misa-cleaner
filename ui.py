@@ -1,216 +1,332 @@
 import threading
 import tkinter as tk
 from datetime import datetime
-from tkinter import messagebox, ttk
+from tkinter import messagebox, scrolledtext, ttk
+
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from scanner import Scanner
 
+matplotlib.use('TkAgg')
 
 class MisaCleanerUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Misa-cleaner")
-        self.root.geometry("950x650")
-        self.root.minsize(900, 600)
-        
-        # Cores Matrix
-        self.cores = {
-            'bg': '#000000',
-            'frame': '#000000',
-            'primary': '#00ff41',
-            'secondary': '#008f11',
-            'text': '#00ff41',
-            'danger': '#ff0000',
-            'warning': '#ffff00',
-            'log_bg': '#000000',
-            'tree_bg': '#000000',     # Fundo da tabela preto
-            'tree_fg': '#00ff41',     # Texto da tabela verde
-            'tree_sel_bg': '#00ff41', # Selecionado verde
-            'tree_sel_fg': '#000000', # Texto selecionado preto
-        }
+        self.root.title("MISA-CLEANER - Caçador de Resquícios Digitais")
+        self.root.geometry("1000x700")
+        self.root.configure(bg='#0a0a0f')
         
         self.scanner = Scanner()
         self.resultados = []
-        self.varredura_ativa = False
-        self._configurar_estilos()
-        self._criar_interface()
+        self.selecionados = set()
+        self.varrendo = False
         
-    def _configurar_estilos(self):
-        self.root.configure(bg=self.cores['bg'])
+        self.setup_ui()
         
-        style = ttk.Style()
-        style.theme_use('clam')
+    def setup_ui(self):
+        # Cores Neon Pastel
+        cores = {
+            'bg': '#0a0a0f',
+            'neon_rosa': '#ff6b9d',
+            'neon_azul': '#6bcfff',
+            'neon_roxo': '#b06bff',
+            'neon_verde': '#6bffb8',
+            'pastel_rosa': '#ffb3c6',
+            'pastel_azul': '#b3d9ff',
+            'pastel_roxo': '#d4b3ff',
+            'texto': '#e0e0ff'
+        }
         
-        style.configure('TFrame', background=self.cores['bg'])
-        style.configure('TLabel', background=self.cores['bg'], foreground=self.cores['text'], font=('Consolas', 10))
+        # Frame principal
+        main_frame = tk.Frame(self.root, bg=cores['bg'])
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
-        # Botões Matrix
-        style.configure('TButton', background=self.cores['bg'], foreground=self.cores['primary'], 
-                       font=('Consolas', 10, 'bold'), borderwidth=2, padding=8, relief='ridge')
-        style.map('TButton', 
-                 background=[('active', self.cores['primary'])],
-                 foreground=[('active', self.cores['bg'])])
+        # Título com efeito neon
+        titulo = tk.Label(
+            main_frame,
+            text="╔══════════════════════════════════════════╗\n"
+                 "║          MISA-CLEANER v1.0             ║\n"
+                 "║   ── Caçador de Resquícios Digitais ── ║\n"
+                 "╚══════════════════════════════════════════╝",
+            font=('Consolas', 12),
+            fg=cores['neon_azul'],
+            bg=cores['bg'],
+            justify=tk.CENTER
+        )
+        titulo.pack(pady=(0, 20))
         
-        style.configure('Danger.TButton', background=self.cores['bg'], foreground=self.cores['danger'])
-        style.map('Danger.TButton', 
-                 background=[('active', self.cores['danger'])],
-                 foreground=[('active', self.cores['bg'])])
+        # Frame dos botões
+        btn_frame = tk.Frame(main_frame, bg=cores['bg'])
+        btn_frame.pack(pady=(0, 15))
         
-        # Estilo da Treeview (Tabela) - PARA FICAR BONITA
-        style.configure("Treeview", 
-                        background=self.cores['tree_bg'], 
-                        foreground=self.cores['tree_fg'], 
-                        fieldbackground=self.cores['tree_bg'],
-                        font=('Consolas', 10),
-                        rowheight=25,
-                        borderwidth=0)
-        style.configure("Treeview.Heading", 
-                        background=self.cores['bg'], 
-                        foreground=self.cores['primary'], 
-                        font=('Consolas', 10, 'bold'),
-                        relief='flat')
-        style.map("Treeview", 
-                  background=[('selected', self.cores['tree_sel_bg'])],
-                  foreground=[('selected', self.cores['tree_sel_fg'])])
+        # Botões estilizados
+        style = {
+            'font': ('Consolas', 10, 'bold'),
+            'bg': cores['bg'],
+            'fg': cores['neon_verde'],
+            'relief': tk.FLAT,
+            'padx': 20,
+            'pady': 10,
+            'cursor': 'hand2'
+        }
         
-    def _criar_interface(self):
-        header = tk.Frame(self.root, bg=self.cores['bg'])
-        header.pack(fill='x', padx=20, pady=15)
-        tk.Label(header, text="MISA-CLEANER", font=('Consolas', 22, 'bold'), 
-                bg=self.cores['bg'], fg=self.cores['primary']).pack()
+        self.btn_iniciar = tk.Button(
+            btn_frame,
+            text="▶ INICIAR VARREDURA",
+            command=self.iniciar_varredura,
+            **style
+        )
+        self.btn_iniciar.pack(side=tk.LEFT, padx=5)
         
-        main = tk.Frame(self.root, bg=self.cores['bg'])
-        main.pack(fill='both', expand=True, padx=20, pady=10)
+        self.btn_parar = tk.Button(
+            btn_frame,
+            text="⏹ PARAR",
+            command=self.parar_varredura,
+            state=tk.DISABLED,
+            **style
+        )
+        self.btn_parar.pack(side=tk.LEFT, padx=5)
         
-        controls = tk.Frame(main, bg=self.cores['bg'])
-        controls.pack(fill='x', pady=10)
+        self.btn_deletar = tk.Button(
+            btn_frame,
+            text="🗑 DELETAR SELECIONADOS",
+            command=self.deletar_selecionados,
+            **style
+        )
+        self.btn_deletar.pack(side=tk.LEFT, padx=5)
         
-        self.btn_escanear = ttk.Button(controls, text="> INICIAR VARREDURA", command=self.iniciar_varredura)
-        self.btn_escanear.pack(side='left', padx=5)
+        # Frame da lista (com scroll)
+        list_frame = tk.Frame(main_frame, bg=cores['bg'])
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=5)
         
-        self.btn_parar = ttk.Button(controls, text="> PARAR", command=self.parar_varredura, style='Danger.TButton')
-        self.btn_parar.pack(side='left', padx=5)
-        self.btn_parar.config(state='disabled')
+        # Treeview com estilo neon
+        style_tree = ttk.Style()
+        style_tree.theme_use('clam')
+        style_tree.configure('Treeview', 
+                           background='#0a0a0f',
+                           foreground=cores['texto'],
+                           rowheight=25,
+                           fieldbackground='#0a0a0f',
+                           borderwidth=0)
+        style_tree.configure('Treeview.Heading',
+                           background='#1a1a2e',
+                           foreground=cores['neon_azul'],
+                           font=('Consolas', 9, 'bold'))
+        style_tree.map('Treeview', 
+                      background=[('selected', '#2a2a4e')])
         
-        self.btn_deletar = ttk.Button(controls, text="> DELETAR SELECIONADOS", command=self.deletar_selecionados, style='Danger.TButton')
-        self.btn_deletar.pack(side='left', padx=5)
-        self.btn_deletar.config(state='disabled')
+        # Scrollbar
+        scrollbar = ttk.Scrollbar(list_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Área de Log Matrix
-        log_frame = tk.Frame(main, bg=self.cores['bg'])
-        log_frame.pack(fill='x', pady=5)
+        self.tree = ttk.Treeview(
+            list_frame,
+            columns=('caminho', 'tamanho', 'ultimo_acesso', 'tipo'),
+            show='headings',
+            yscrollcommand=scrollbar.set
+        )
+        scrollbar.config(command=self.tree.yview)
         
-        self.log_area = tk.Text(log_frame, height=6, wrap='word', 
-                                bg=self.cores['log_bg'], fg=self.cores['text'], 
-                                font=('Consolas', 9), relief='sunken', borderwidth=2)
-        self.log_area.pack(fill='x')
-        self.log_area.insert('end', ">> SISTEMA PRONTO.\n")
+        self.tree.heading('caminho', text='Caminho', anchor=tk.W)
+        self.tree.heading('tamanho', text='Tamanho (MB)', anchor=tk.E)
+        self.tree.heading('ultimo_acesso', text='Último Acesso', anchor=tk.W)
+        self.tree.heading('tipo', text='Tipo', anchor=tk.W)
         
-        # Tabela Matrix (Treeview)
-        table_frame = tk.Frame(main, bg=self.cores['bg'])
-        table_frame.pack(fill='both', expand=True, pady=5)
+        self.tree.column('caminho', width=450, anchor=tk.W)
+        self.tree.column('tamanho', width=100, anchor=tk.E)
+        self.tree.column('ultimo_acesso', width=150, anchor=tk.W)
+        self.tree.column('tipo', width=120, anchor=tk.W)
         
-        columns = ('Caminho', 'Tamanho (MB)', 'Último Acesso')
-        self.tree = ttk.Treeview(table_frame, columns=columns, show='headings', height=12)
+        self.tree.pack(fill=tk.BOTH, expand=True)
         
-        for col in columns:
-            self.tree.heading(col, text=col)
-            if col == 'Caminho':
-                self.tree.column(col, width=500)
-            else:
-                self.tree.column(col, width=150)
+        # Bind para seleção
+        self.tree.bind('<<TreeviewSelect>>', self.on_selecionar)
         
-        # Estilo da barra de rolagem para ficar verde
-        scrollbar = tk.Scrollbar(table_frame, orient='vertical', command=self.tree.yview, 
-                                 bg=self.cores['bg'], troughcolor=self.cores['bg'],
-                                 activebackground=self.cores['primary'], 
-                                 highlightbackground=self.cores['primary'])
-        self.tree.configure(yscrollcommand=scrollbar.set)
+        # Frame do log
+        log_label = tk.Label(
+            main_frame,
+            text="─── LOG DO SISTEMA ───",
+            font=('Consolas', 9),
+            fg=cores['neon_roxo'],
+            bg=cores['bg']
+        )
+        log_label.pack(pady=(10, 2), anchor=tk.W)
         
-        self.tree.pack(side='left', fill='both', expand=True)
-        scrollbar.pack(side='right', fill='y')
+        self.log_text = scrolledtext.ScrolledText(
+            main_frame,
+            height=6,
+            font=('Consolas', 8),
+            bg='#0a0a0f',
+            fg=cores['texto'],
+            insertbackground=cores['neon_azul']
+        )
+        self.log_text.pack(fill=tk.X, pady=(0, 5))
+        self.log_text.config(state=tk.DISABLED)
         
-    def log(self, mensagem, tipo='info'):
-        cor = {'info': self.cores['text'], 'warning': self.cores['warning'], 'success': self.cores['text'], 'error': self.cores['danger']}.get(tipo, self.cores['text'])
-        self.log_area.insert('end', f">> {mensagem}\n", tipo)
-        self.log_area.tag_config('info', foreground=self.cores['text'])
-        self.log_area.tag_config('warning', foreground=self.cores['warning'])
-        self.log_area.tag_config('success', foreground=self.cores['text'])
-        self.log_area.tag_config('error', foreground=self.cores['danger'])
-        self.log_area.see('end')
-        self.root.update_idletasks()
+        # Status bar
+        self.status_label = tk.Label(
+            main_frame,
+            text="SISTEMA PRONTO AGUARDANDO VARREDURA",
+            font=('Consolas', 8),
+            fg=cores['neon_verde'],
+            bg=cores['bg'],
+            anchor=tk.W
+        )
+        self.status_label.pack(fill=tk.X, pady=(5, 0))
         
+        # Adicionar log inicial
+        self.adicionar_log(">> SISTEMA INICIADO. AGUARDANDO COMANDOS...")
+        self.adicionar_log(">> DIGITE 'INICIAR VARREDURA' PARA COMEÇAR")
+
+    def adicionar_log(self, mensagem):
+        self.log_text.config(state=tk.NORMAL)
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.log_text.insert(tk.END, f"[{timestamp}] {mensagem}\n")
+        self.log_text.see(tk.END)
+        self.log_text.config(state=tk.DISABLED)
+
     def iniciar_varredura(self):
-        if self.varredura_ativa: return
-        self.varredura_ativa = True
+        if self.varrendo:
+            return
+            
+        self.varrendo = True
+        self.btn_iniciar.config(state=tk.DISABLED)
+        self.btn_parar.config(state=tk.NORMAL)
+        
+        # Limpa a lista anterior
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        
+        self.selecionados.clear()
         self.resultados = []
-        self.tree.delete(*self.tree.get_children())
-        self.log_area.delete('1.0', 'end')
         
-        self.log("INICIANDO VARREDURA...", 'info')
-        self.btn_escanear.config(state='disabled')
-        self.btn_parar.config(state='normal')
-        self.btn_deletar.config(state='disabled')
+        self.adicionar_log(">> INICIANDO VARREDURA MATRIX...")
+        self.status_label.config(text="VARRENDO SISTEMA...")
         
-        thread = threading.Thread(target=self._executar_varredura, daemon=True)
+        # Inicia a varredura em uma thread separada
+        thread = threading.Thread(target=self.executar_varredura)
+        thread.daemon = True
         thread.start()
-        
-    def _executar_varredura(self):
+
+    def executar_varredura(self):
         try:
-            self.scanner.escanear(
+            resultados = self.scanner.escanear_tudo(
                 callback_progresso=self.atualizar_progresso,
                 callback_resultado=self.adicionar_resultado
             )
+            
+            self.resultados = (
+                resultados.get('resquicios', []) +
+                resultados.get('obsoletos', []) +
+                resultados.get('duplicados', [])
+            )
+            
+            # Atualiza a interface
+            self.root.after(0, self.finalizar_varredura)
+            
         except Exception as e:
-            self.log(f"ERRO: {e}", 'error')
-        finally:
-            self.finalizar_varredura()
-            
+            self.root.after(0, lambda: self.adicionar_log(f">> ERRO: {str(e)}"))
+            self.root.after(0, self.finalizar_varredura)
+
     def atualizar_progresso(self, caminho):
-        # Função que roda durante a varredura para não travar a tela
-        if not self.varredura_ativa: return
-        self.root.update_idletasks() # Garante que a interface continue responsiva
+        self.root.after(0, lambda: self.status_label.config(
+            text=f"ESCANEANDO: {caminho[:60]}..."
+        ))
+
+    def adicionar_resultado(self, item):
+        self.root.after(0, lambda: self.inserir_item_na_lista(item))
+
+    def inserir_item_na_lista(self, item):
+        try:
+            caminho = item.get('caminho', '')
+            tamanho = f"{item.get('tamanho_mb', 0):.1f}"
+            ultimo_acesso = item.get('ultimo_acesso', '')
+            if ultimo_acesso:
+                ultimo_acesso = ultimo_acesso.strftime("%Y-%m-%d %H:%M")
             
-    def adicionar_resultado(self, resultado):
-        self.resultados.append(resultado)
-        tamanho_str = f"{resultado['tamanho_mb']:.1f}"
-        data_str = resultado['ultimo_acesso'].strftime("%d/%m/%Y %H:%M")
+            tipo = item.get('tipo', 'desconhecido')
+            if tipo == 'resquicio':
+                programa = item.get('programa', '')
+                tipo = f"Resquício: {programa}"
+            elif tipo == 'obsoleto':
+                tipo = "Obsoleto"
+            elif tipo == 'duplicado':
+                tipo = "Duplicado"
+            else:
+                tipo = "Outro"
+            
+            self.tree.insert('', tk.END, values=(caminho, tamanho, ultimo_acesso, tipo))
+            
+            # Scroll para o último item
+            self.tree.yview_moveto(1)
+            
+        except Exception as e:
+            self.adicionar_log(f">> ERRO AO INSERIR ITEM: {str(e)}")
+
+    def finalizar_varredura(self):
+        self.varrendo = False
+        self.btn_iniciar.config(state=tk.NORMAL)
+        self.btn_parar.config(state=tk.DISABLED)
         
-        self.tree.insert('', 'end', values=(resultado['caminho'], tamanho_str, data_str))
-        self.log(f"ENCONTRADO: {resultado['caminho']}", 'warning')
-        
+        total = len(self.tree.get_children())
+        self.status_label.config(text=f"VARREDURA CONCLUÍDA. {total} RESQUÍCIOS ENCONTRADOS.")
+        self.adicionar_log(f">> VARREDURA CONCLUÍDA. {total} RESQUÍCIOS ENCONTRADOS.")
+
     def parar_varredura(self):
         self.scanner.parar()
-        self.log("VARREDURA INTERROMPIDA PELO USUÁRIO.", 'error')
-        self.finalizar_varredura()
+        self.adicionar_log(">> PARANDO VARREDURA...")
+        self.status_label.config(text="VARREDURA INTERROMPIDA PELO USUÁRIO")
+        self.btn_parar.config(state=tk.DISABLED)
+        self.varrendo = False
+
+    def on_selecionar(self, event):
+        selection = self.tree.selection()
+        self.selecionados = set(selection)
         
-    def finalizar_varredura(self):
-        self.varredura_ativa = False
-        self.btn_escanear.config(state='normal')
-        self.btn_parar.config(state='disabled')
-        
-        if self.resultados:
-            self.btn_deletar.config(state='normal')
-            self.log(f"CONCLUÍDO. {len(self.resultados)} RESQUÍCIOS ENCONTRADOS.", 'success')
+        if selection:
+            self.btn_deletar.config(state=tk.NORMAL)
         else:
-            self.log("CONCLUÍDO. NENHUM RESQUÍCIO ENCONTRADO.", 'success')
-            
+            self.btn_deletar.config(state=tk.DISABLED)
+
     def deletar_selecionados(self):
-        selecionados = self.tree.selection()
-        if not selecionados:
-            messagebox.showwarning("", "Selecione ao menos um item.")
+        if not self.selecionados:
             return
-        if not messagebox.askyesno("", "Deletar os selecionados?"): return
+            
+        if not messagebox.askyesno(
+            "Confirmar Exclusão",
+            f"Tem certeza que deseja deletar {len(self.selecionados)} item(ns)?\n"
+            "Esta ação NÃO pode ser desfeita!"
+        ):
+            return
         
-        for item in selecionados:
-            caminho = self.tree.item(item)['values'][0]
-            sucesso, msg = self.scanner.deletar_pasta(caminho)
-            if sucesso:
+        deletados = 0
+        erros = 0
+        
+        for item in self.selecionados:
+            valores = self.tree.item(item, 'values')
+            caminho = valores[0]
+            
+            # Verifica se é arquivo ou pasta
+            success, msg = self.scanner.deletar_pasta(caminho)
+            if success:
                 self.tree.delete(item)
-                self.log(f"DELETADO: {caminho}", 'success')
-                self.resultados = [r for r in self.resultados if r['caminho'] != caminho]
+                deletados += 1
+                self.adicionar_log(f">> DELETADO: {caminho}")
             else:
-                self.log(f"ERRO AO DELETAR: {msg}", 'error')
-                
-        if not self.tree.get_children():
-            self.btn_deletar.config(state='disabled')
+                erros += 1
+                self.adicionar_log(f">> ERRO AO DELETAR: {caminho}")
+        
+        self.selecionados.clear()
+        self.btn_deletar.config(state=tk.DISABLED)
+        
+        self.adicionar_log(f">> EXCLUSÃO CONCLUÍDA: {deletados} deletados, {erros} erros")
+
+def main():
+    root = tk.Tk()
+    app = MisaCleanerUI(root)
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()

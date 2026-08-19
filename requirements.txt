@@ -1,1 +1,2 @@
-matplotlib
+# MISA-CLEANER - Dependências
+# Nenhuma dependência externa necessária além da biblioteca padrão Python

@@ -75,7 +75,7 @@ class Scanner:
                     tamanho_mb = self.calcular_tamanho(caminho)
                     if tamanho_mb > 1:
                         nome = os.path.basename(caminho).lower()
-                        if 'temp' in nome or 'cache' in nome or 'old' in nome:
+                        if 'temp' in nome or 'cache' in nome or 'old' in nome or 'backup' in nome:
                             resultado = {
                                 'caminho': caminho,
                                 'tamanho_mb': tamanho_mb,

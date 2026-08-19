@@ -1,6 +1,6 @@
 """
 MISA-CLEANER - Interface Matrix Imersiva
-COM EFEITO MATRIX EM TELA CHEIA DURANTE A VARREDURA
+COM EFEITO MATRIX EM TELA CHEIA - USANDO MATRIX_RAIN
 """
 import os
 import subprocess
@@ -10,7 +10,7 @@ from tkinter import messagebox, ttk
 from typing import Dict, List, Optional
 
 from logger import Logger, LogNivel
-from matrix_rain import MatrixRain
+from matrix_rain import MatrixRain  # IMPORTADO AQUI!
 from scanner import Scanner
 
 
@@ -397,11 +397,11 @@ class MisaCleanerUI:
     # ============================================
     
     def _ativar_matrix(self):
-        """🌟 ATIVA A CHUVA MATRIX EM TELA CHEIA - SEM TEXTO!"""
+        """🌟 ATIVA A CHUVA MATRIX EM TELA CHEIA"""
         # Remove a interface
         self.main_frame.pack_forget()
         
-        # 🌟 CRIA APENAS A CHUVA - SEM TEXTO, SEM NADA!
+        # 🌟 CRIA APENAS A CHUVA
         self.matrix = MatrixRain(self.root)
         self.matrix.iniciar()
         
@@ -480,7 +480,7 @@ class MisaCleanerUI:
         self.result_count.config(text="(0)")
         self.resultados = []
         
-        # 🌟 ATIVA A CHUVA MATRIX (TELA CHEIA - SEM TEXTO!)
+        # 🌟 ATIVA A CHUVA MATRIX (TELA CHEIA)
         self._ativar_matrix()
         
         self.varrendo = True

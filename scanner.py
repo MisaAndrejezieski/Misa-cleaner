@@ -23,7 +23,7 @@ class Scanner:
         ]
         
         # ==========================================
-        # 🛡️ LISTA DE PASTAS IGNORADAS (Corrigida)
+        # 🛡️ LISTA DE PASTAS IGNORADAS (REFORÇADA)
         # ==========================================
         self.pastas_ignoradas = [
             # Pastas críticas do Windows
@@ -31,17 +31,16 @@ class Scanner:
             "C:\\System Volume Information", "C:\\Windows\\WinSxS", "C:\\Windows\\Installer",
             "C:\\Users\\Public", os.path.join(os.path.expanduser('~'), 'AppData', 'Local', 'Temp'),
             
-            # 🟢 IGNORAR PASTAS DE CACHE DOS NAVEGADORES E PYTHON
-            # Google Chrome
-            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Google', 'Chrome', 'User Data'),
-            # Microsoft Edge
-            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Microsoft', 'Edge', 'User Data'),
-            # PyWebview (biblioteca usada pelo seu programa)
-            os.path.join(os.environ.get('APPDATA', ''), 'pywebview'),
-            # Ollama (apareceu no seu log)
-            os.path.join(os.environ.get('APPDATA', ''), 'ollama app.exe'),
+            # 🟢 BLOQUEIO DE APLICATIVOS QUE GERAM ERRO 267
+            "GitHubDesktop",          # GitHub Desktop
+            "Olk",                    # App da Microsoft (Outlook/Teams)
+            "Clipchamp",              # Editor de vídeo da Microsoft
+            "EBWebView",              # WebView dos apps da Microsoft
+            "pywebview",              # WebView do Python
+            "Microsoft\\Olk",         # Caminho completo da Microsoft Olk
+            "Packages\\Clipchamp",    # Caminho completo do Clipchamp
             
-            # 🟢 IGNORAR PASTAS DE DESENVOLVIMENTO
+            # 🟢 IGNORAR PASTAS DE DESENVOLVIMENTO E CACHE
             os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Programs', 'Microsoft VS Code'),
             os.path.join(os.environ.get('APPDATA', ''), 'Code'),
             "node_modules", ".git", ".venv", "__pycache__"
@@ -268,10 +267,31 @@ class Scanner:
         return contador
 
     def _deve_ignorar(self, caminho):
+        """
+        🛡️ Função reforçada para verificar se um caminho deve ser ignorado.
+        Agora verifica se qualquer parte do caminho contém as pastas problemáticas.
+        """
+        if not caminho:
+            return True
+            
+        # Normaliza o caminho para minúsculas para comparação segura
+        caminho_lower = caminho.lower()
+        
         for ignorado in self.pastas_ignoradas:
-            if caminho and ignorado:
-                if caminho.startswith(ignorado) or ignorado in caminho.split(os.sep):
-                    return True
+            if not ignorado:
+                continue
+                
+            ignorado_lower = ignorado.lower()
+            
+            # Verifica se o caminho começa com a pasta ignorada
+            if caminho_lower.startswith(ignorado_lower):
+                return True
+                
+            # Verifica se o nome da pasta ignorada está contida em algum lugar do caminho
+            # Isso resolve o problema de pastas dentro de AppData/Roaming/Local
+            if ignorado_lower in caminho_lower:
+                return True
+                
         return False
 
     def calcular_tamanho(self, caminho):

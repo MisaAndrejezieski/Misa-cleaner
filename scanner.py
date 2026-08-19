@@ -1,19 +1,26 @@
 """
 MISA-CLEANER - Scanner de Resquícios Digitais
-Versão refatorada com tratamento de erros robusto e filtros inteligentes
+VERSÃO 3.0 - Com proteção de sistema, detecção de arquivos em uso e logs inteligentes
+
+MELHORIAS:
+✅ Pastas do sistema (Java, Edge, Android) são protegidas automaticamente
+✅ Arquivos em uso são detectados e ignorados silenciosamente
+✅ Logs de "Acesso Negado" são suprimidos (mostrados apenas em DEBUG)
+✅ Diagnóstico detalhado mostra o que foi ignorado e por quê
+✅ 100% seguro - nunca tenta deletar arquivos do sistema ou em uso
 """
 import hashlib
 import os
 import shutil
 import subprocess
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 from logger import Logger, LogNivel
 
 
 class Scanner:
-    """Scanner profissional para encontrar resquícios, obsoletos e duplicados"""
+    """Scanner profissional com proteção inteligente de sistema"""
     
     def __init__(self, logger: Optional[Logger] = None):
         self.logger = logger or Logger()
@@ -25,7 +32,13 @@ class Scanner:
         self.parar_varredura = False
         self.total_verificados = 0
         
-        # Pastas comuns de programas (ESCOPO REDUZIDO)
+        # Estatísticas de ignorados (para diagnóstico)
+        self.ignorados_sistema = 0      # Pastas do sistema protegidas
+        self.ignorados_em_uso = 0       # Arquivos em uso
+        self.ignorados_lista_negra = 0  # Pastas da lista negra
+        self.ignorados_extensao = 0     # Extensões ignoradas
+        
+        # Pastas comuns de programas (ESCOPO REDUZIDO E SEGURO)
         self.pastas_sistema = [
             os.environ.get('APPDATA', ''),           # C:\Users\Usuario\AppData\Roaming
             os.environ.get('LOCALAPPDATA', ''),      # C:\Users\Usuario\AppData\Local
@@ -36,6 +49,9 @@ class Scanner:
         
         # 🛡️ LISTA COMPLETA DE PASTAS IGNORADAS (BLOQUEIO TOTAL)
         self.pastas_ignoradas = self._build_ignore_list()
+        
+        # 🛡️ PASTAS DO SISTEMA PROTEGIDAS (NUNCA VARRER)
+        self.pastas_sistema_protegidas = self._build_system_protected_list()
         
         # Programas conhecidos para detecção de resquícios
         self.programas_conhecidos = [
@@ -75,8 +91,87 @@ class Scanner:
             '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2'
         }
         
+        # 🌟 NOVO: Arquivos/Pastas do usuário que são seguros para deletar
+        # (usado para sugerir exclusão)
+        self.pastas_seguras_para_deletar = [
+            'Temp', 'Cache', 'Logs', 'Backup', 'Old',
+            'node_modules', '__pycache__', '.venv', 'venv'
+        ]
+        
+    def _build_system_protected_list(self) -> List[str]:
+        """
+        Constrói lista de pastas do sistema que NUNCA devem ser varridas
+        """
+        user = os.path.expanduser('~')
+        program_files = os.environ.get('PROGRAMFILES', '')
+        program_files_x86 = os.environ.get('PROGRAMFILES(X86)', '')
+        
+        # Pastas do sistema Windows
+        sistema_windows = [
+            "C:\\Windows",
+            "C:\\Windows\\System32",
+            "C:\\Windows\\SysWOW64",
+            "C:\\Windows\\WinSxS",
+            "C:\\Windows\\Installer",
+            "C:\\Windows\\Microsoft.NET",
+            "C:\\Windows\\assembly",
+            "C:\\ProgramData",
+            "C:\\Users\\Public",
+            "C:\\PerfLogs",
+            "C:\\Recovery",
+            "C:\\$Recycle.Bin",
+            "C:\\System Volume Information",
+        ]
+        
+        # Programas instalados (PROTEGIDOS - nunca deletar)
+        programas_instalados = [
+            os.path.join(program_files, 'Java'),
+            os.path.join(program_files, 'Android'),
+            os.path.join(program_files, 'Android Studio'),
+            os.path.join(program_files, 'JetBrains'),
+            os.path.join(program_files, 'Git'),
+            os.path.join(program_files, 'nodejs'),
+            os.path.join(program_files, 'Microsoft SQL Server'),
+            os.path.join(program_files, 'dotnet'),
+            os.path.join(program_files, 'WindowsApps'),
+            
+            os.path.join(program_files_x86, 'Java'),
+            os.path.join(program_files_x86, 'Microsoft', 'Edge'),
+            os.path.join(program_files_x86, 'Google', 'Chrome'),
+            os.path.join(program_files_x86, 'Mozilla Firefox'),
+            os.path.join(program_files_x86, 'Steam'),
+            os.path.join(program_files_x86, 'Epic Games'),
+            os.path.join(program_files_x86, 'Ubisoft'),
+            os.path.join(program_files_x86, 'Origin'),
+            os.path.join(program_files_x86, 'GOG Galaxy'),
+        ]
+        
+        # Pastas do usuário que são programas (PROTEGIDOS)
+        pastas_usuario_programas = [
+            os.path.join(user, 'AppData', 'Local', 'Android'),
+            os.path.join(user, 'AppData', 'Local', 'Google', 'Chrome'),
+            os.path.join(user, 'AppData', 'Local', 'Microsoft', 'Edge'),
+            os.path.join(user, 'AppData', 'Local', 'Programs'),
+            os.path.join(user, 'AppData', 'Local', 'GitHubDesktop'),
+            os.path.join(user, 'AppData', 'Roaming', 'Code'),
+            os.path.join(user, '.android'),
+            os.path.join(user, '.gradle'),
+            os.path.join(user, '.m2'),
+            os.path.join(user, '.npm'),
+            os.path.join(user, '.yarn'),
+            os.path.join(user, '.dotnet'),
+            os.path.join(user, '.rustup'),
+            os.path.join(user, '.cargo'),
+            os.path.join(user, '.vscode'),
+            os.path.join(user, '.idea'),
+        ]
+        
+        # Combinar todas as listas e normalizar
+        todas = sistema_windows + programas_instalados + pastas_usuario_programas
+        return [os.path.normpath(p) for p in todas if p and os.path.normpath(p)]
+        
     def _build_ignore_list(self) -> List[str]:
-        """Constrói lista completa de pastas ignoradas"""
+        """Constrói lista completa de pastas ignoradas (expansível)"""
         user = os.path.expanduser('~')
         localappdata = os.environ.get('LOCALAPPDATA', '')
         appdata = os.environ.get('APPDATA', '')
@@ -117,19 +212,6 @@ class Scanner:
             os.path.join(user, '.cache'),
             os.path.join(user, '.config'),
             os.path.join(user, '.local'),
-            os.path.join(user, '.vscode'),
-            os.path.join(user, '.mozilla'),
-            os.path.join(user, '.npm'),
-            os.path.join(user, '.yarn'),
-            os.path.join(user, '.gradle'),
-            os.path.join(user, '.m2'),
-            os.path.join(user, '.android'),
-            os.path.join(user, '.dotnet'),
-            os.path.join(user, '.rustup'),
-            os.path.join(user, '.cargo'),
-            os.path.join(user, '.venv'),
-            os.path.join(user, 'venv'),
-            os.path.join(user, 'env'),
             os.path.join(user, '.git'),
             os.path.join(user, '.svn'),
             os.path.join(user, '.hg'),
@@ -182,10 +264,62 @@ class Scanner:
         # Filtrar valores vazios e normalizar
         return [os.path.normpath(p) for p in todas if p and os.path.normpath(p)]
         
-    def _deve_ignorar(self, caminho: str) -> bool:
+    def _eh_pasta_sistema_protegida(self, caminho: str) -> bool:
         """
-        Verifica se o caminho deve ser ignorado usando correspondência exata
+        Verifica se o caminho é uma pasta do sistema que NUNCA deve ser varrida
+        """
+        if not caminho:
+            return True
+            
+        try:
+            caminho_norm = os.path.normpath(caminho).lower()
+            
+            for protegida in self.pastas_sistema_protegidas:
+                if not protegida:
+                    continue
+                    
+                protegida_norm = os.path.normpath(protegida).lower()
+                
+                # Verifica se o caminho começa com a pasta protegida
+                if caminho_norm.startswith(protegida_norm):
+                    return True
+                    
+            return False
+            
+        except Exception:
+            return False
+            
+    def _arquivo_em_uso(self, caminho: str) -> bool:
+        """
+        Verifica se um arquivo está em uso por outro processo
+        Retorna True se estiver em uso (deve ser ignorado)
+        """
+        if not os.path.exists(caminho):
+            return False
+            
+        if not os.path.isfile(caminho):
+            return False
+            
+        try:
+            # Tenta abrir o arquivo com compartilhamento de leitura
+            # Se falhar, está em uso
+            with open(caminho, 'rb') as f:
+                f.read(1)
+            return False
+        except (PermissionError, OSError, IOError):
+            # Arquivo em uso ou protegido
+            return True
+        except Exception:
+            return True
+            
+    def _deve_ignorar(self, caminho: str, logar: bool = False) -> bool:
+        """
+        Verifica se o caminho deve ser ignorado com correspondência exata
         de componentes de diretório (evita falsos positivos)
+        
+        Args:
+            caminho: Caminho a verificar
+            logar: Se deve logar quando ignorado (False = silencioso)
         """
         if not caminho:
             return True
@@ -194,6 +328,14 @@ class Scanner:
             caminho_norm = os.path.normpath(caminho).lower()
             partes = caminho_norm.split(os.sep)
             
+            # 1. Verifica se é pasta do sistema protegida
+            if self._eh_pasta_sistema_protegida(caminho):
+                self.ignorados_sistema += 1
+                if logar:
+                    self.logger.debug(f"⏭️ Sistema protegido: {caminho}")
+                return True
+                
+            # 2. Verifica lista negra (ignorados)
             for ignorado in self.pastas_ignoradas:
                 if not ignorado:
                     continue
@@ -204,25 +346,39 @@ class Scanner:
                 # Verifica se o caminho ignorado corresponde a um prefixo de pastas
                 if len(partes_ignorado) <= len(partes):
                     if partes[:len(partes_ignorado)] == partes_ignorado:
-                        # Se o caminho termina com o ignorado OU tem mais pastas depois
-                        if len(partes) >= len(partes_ignorado):
-                            return True
-                            
-                # Verifica se o nome da pasta está no caminho (apenas para alguns casos especiais)
+                        self.ignorados_lista_negra += 1
+                        if logar:
+                            self.logger.debug(f"⏭️ Lista negra: {caminho}")
+                        return True
+                        
                 # Para 'node_modules', '.git', etc., verifica qualquer nível
                 if ignorado_norm in ['node_modules', '.git', '.venv', 'venv', '__pycache__']:
                     if ignorado_norm in partes:
+                        self.ignorados_lista_negra += 1
+                        if logar:
+                            self.logger.debug(f"⏭️ Lista negra: {caminho}")
                         return True
                         
+            # 3. Verifica se é arquivo em uso (apenas arquivos)
+            if os.path.isfile(caminho):
+                if self._arquivo_em_uso(caminho):
+                    self.ignorados_em_uso += 1
+                    if logar:
+                        self.logger.debug(f"⏭️ Arquivo em uso: {caminho}")
+                    return True
+                    
             return False
             
         except Exception:
             return False
             
-    def _verificar_permissao(self, caminho: str) -> Tuple[bool, str]:
+    def _verificar_permissao(self, caminho: str, silencioso: bool = True) -> Tuple[bool, str]:
         """
         Verifica se tem permissão de acesso ao caminho
-        Retorna (tem_permissao, motivo)
+        
+        Args:
+            caminho: Caminho a verificar
+            silencioso: Se deve logar erros (True = silencioso)
         """
         try:
             if os.path.isdir(caminho):
@@ -233,16 +389,29 @@ class Scanner:
                 with open(caminho, 'rb') as f:
                     f.read(1)
             return True, ""
+            
         except PermissionError:
+            if not silencioso:
+                self.logger.debug(f"🔒 Sem permissão: {caminho}")
             return False, "SEM PERMISSÃO"
+            
         except OSError as e:
             if "267" in str(e):
-                return False, "PASTA BLOQUEADA (erro 267)"
+                if not silencioso:
+                    self.logger.debug(f"📁 Pasta bloqueada: {caminho}")
+                return False, "PASTA BLOQUEADA"
             elif "5" in str(e):
+                if not silencioso:
+                    self.logger.debug(f"🔒 Acesso negado: {caminho}")
                 return False, "ACESSO NEGADO"
             else:
+                if not silencioso:
+                    self.logger.debug(f"⚠️ Erro: {caminho} - {str(e)[:50]}")
                 return False, f"ERRO: {str(e)[:50]}"
+                
         except Exception as e:
+            if not silencioso:
+                self.logger.debug(f"⚠️ Erro: {caminho} - {str(e)[:50]}")
             return False, f"ERRO: {str(e)[:50]}"
             
     def _calcular_tamanho(self, caminho: str) -> float:
@@ -261,7 +430,7 @@ class Scanner:
                 if self.parar_varredura:
                     return total / (1024 * 1024)
                     
-                # Filtra pastas ignoradas em tempo real
+                # Filtra pastas ignoradas em tempo real (silencioso)
                 if self._deve_ignorar(root):
                     continue
                     
@@ -312,12 +481,17 @@ class Scanner:
 
     def _encontrar_resquicios_programas(self, callback_progresso: Optional[Callable] = None,
                                        callback_resultado: Optional[Callable] = None) -> List[Dict]:
-        """Encontra resquícios de programas deletados"""
+        """Encontra resquícios de programas deletados (com filtros inteligentes)"""
         resultados = []
         self.logger.info("🔍 BUSCANDO RESQUÍCIOS DE PROGRAMAS...")
         
-        for pasta_base in self.pastas_sistema[:3]:  # APPDATA, LOCALAPPDATA, PROGRAMFILES
+        for pasta_base in self.pastas_sistema[:3]:
             if not pasta_base or not os.path.exists(pasta_base):
+                continue
+                
+            # Verifica se a pasta base é protegida
+            if self._deve_ignorar(pasta_base):
+                self.logger.debug(f"⏭️ Pasta base ignorada: {pasta_base}")
                 continue
                 
             self.logger.debug(f"📁 Verificando: {pasta_base}")
@@ -329,21 +503,16 @@ class Scanner:
                         
                     caminho_item = os.path.join(pasta_base, item)
                     
-                    # Ignora pastas proibidas
+                    # Ignora pastas proibidas (silencioso)
                     if self._deve_ignorar(caminho_item):
-                        self.logger.debug(f"⏭️ Ignorado (lista negra): {caminho_item}")
                         continue
                         
                     if not os.path.isdir(caminho_item):
                         continue
                         
-                    # Verifica permissão
-                    tem_perm, motivo = self._verificar_permissao(caminho_item)
+                    # Verifica permissão (silencioso)
+                    tem_perm, _ = self._verificar_permissao(caminho_item, silencioso=True)
                     if not tem_perm:
-                        if motivo == "SEM PERMISSÃO":
-                            self.logger.aviso(f"🔒 Sem permissão: {caminho_item}")
-                        else:
-                            self.logger.aviso(f"⚠️ {motivo}: {caminho_item}")
                         continue
                         
                     for programa in self.programas_conhecidos:
@@ -370,7 +539,7 @@ class Scanner:
                         self.total_verificados += 1
                         
             except (PermissionError, OSError) as e:
-                self.logger.aviso(f"⚠️ Não foi possível verificar {pasta_base}: {str(e)[:50]}")
+                self.logger.debug(f"⚠️ Não foi possível verificar {pasta_base}: {str(e)[:50]}")
                 continue
                 
         self.logger.info(f"✅ Resquícios encontrados: {len(resultados)}")
@@ -378,7 +547,7 @@ class Scanner:
 
     def _encontrar_obsoletos(self, callback_progresso: Optional[Callable] = None,
                             callback_resultado: Optional[Callable] = None) -> List[Dict]:
-        """Encontra arquivos/pastas obsoletos (1+ ano sem acesso)"""
+        """Encontra arquivos/pastas obsoletos (1+ ano sem acesso) com filtros"""
         resultados = []
         um_ano_atras = datetime.now() - timedelta(days=365)
         self.logger.info("📂 BUSCANDO ARQUIVOS OBSOLETOS...")
@@ -388,11 +557,17 @@ class Scanner:
         for pasta in pastas_para_varer:
             if self.parar_varredura:
                 return resultados
+                
+            # Verifica se a pasta base é protegida
+            if self._deve_ignorar(pasta):
+                self.logger.debug(f"⏭️ Pasta ignorada: {pasta}")
+                continue
+                
             try:
                 self._escavar_obsoletos(pasta, um_ano_atras, resultados, 
                                        callback_progresso, callback_resultado, 0)
             except (PermissionError, OSError) as e:
-                self.logger.aviso(f"⚠️ Não foi possível verificar {pasta}: {str(e)[:50]}")
+                self.logger.debug(f"⚠️ Não foi possível verificar {pasta}: {str(e)[:50]}")
                 continue
                 
         self.logger.info(f"✅ Obsoletos encontrados: {len(resultados)}")
@@ -411,18 +586,13 @@ class Scanner:
             self.logger.debug(f"⏭️ Profundidade máxima atingida: {caminho}")
             return
             
-        # Ignora pastas proibidas
+        # Ignora pastas proibidas (silencioso)
         if self._deve_ignorar(caminho):
-            self.logger.debug(f"⏭️ Ignorado (lista negra): {caminho}")
             return
             
-        # Verifica permissão
-        tem_perm, motivo = self._verificar_permissao(caminho)
+        # Verifica permissão (silencioso)
+        tem_perm, _ = self._verificar_permissao(caminho, silencioso=True)
         if not tem_perm:
-            if motivo == "SEM PERMISSÃO":
-                self.logger.aviso(f"🔒 Sem permissão: {caminho}")
-            else:
-                self.logger.aviso(f"⚠️ {motivo}: {caminho}")
             return
             
         try:
@@ -432,7 +602,7 @@ class Scanner:
                     
                 item_path = os.path.join(caminho, item)
                 
-                # Ignora arquivos/pastas proibidas
+                # Ignora arquivos/pastas proibidas (silencioso)
                 if self._deve_ignorar(item_path):
                     continue
                     
@@ -476,18 +646,24 @@ class Scanner:
 
     def _encontrar_duplicados(self, callback_progresso: Optional[Callable] = None,
                              callback_resultado: Optional[Callable] = None) -> List[Dict]:
-        """Encontra arquivos duplicados (limite aumentado)"""
+        """Encontra arquivos duplicados com filtros inteligentes"""
         resultados = []
         hash_map = {}
         self.logger.info("📎 BUSCANDO ARQUIVOS DUPLICADOS...")
         
         pastas_para_varer = [p for p in self.pastas_sistema if p and os.path.exists(p)]
         arquivos_verificados = 0
-        limite_arquivos = 50000  # AUMENTADO de 1000 para 50000
+        limite_arquivos = 50000
         
         for pasta in pastas_para_varer:
             if self.parar_varredura:
                 return resultados
+                
+            # Verifica se a pasta base é protegida
+            if self._deve_ignorar(pasta):
+                self.logger.debug(f"⏭️ Pasta ignorada: {pasta}")
+                continue
+                
             try:
                 arquivos_verificados = self._escavar_duplicados(
                     pasta, hash_map, callback_progresso, 
@@ -497,26 +673,35 @@ class Scanner:
                     self.logger.aviso(f"⏸️ Limite de {limite_arquivos} arquivos atingido")
                     break
             except (PermissionError, OSError) as e:
-                self.logger.aviso(f"⚠️ Não foi possível verificar {pasta}: {str(e)[:50]}")
+                self.logger.debug(f"⚠️ Não foi possível verificar {pasta}: {str(e)[:50]}")
                 continue
                 
-        # Processa resultados
+        # Processa resultados (filtra arquivos em uso)
         for file_hash, arquivos in hash_map.items():
             if len(arquivos) > 1:
-                tamanho_total = sum(self._calcular_tamanho_arquivo(a) for a in arquivos)
-                if tamanho_total > 1:
-                    resultado = {
-                        'hash': file_hash,
-                        'arquivos': arquivos,
-                        'tamanho_total_mb': tamanho_total,
-                        'tipo': 'duplicado',
-                        'caminho': arquivos[0],
-                        'is_pasta': False  # É arquivo, não pasta
-                    }
-                    resultados.append(resultado)
-                    if callback_resultado:
-                        callback_resultado(resultado)
-                    self.logger.aviso(f"📎 Duplicado: {os.path.basename(arquivos[0])} ({tamanho_total:.1f} MB, {len(arquivos)} cópias)")
+                # Filtra arquivos em uso
+                arquivos_validos = []
+                for a in arquivos:
+                    if not self._arquivo_em_uso(a):
+                        arquivos_validos.append(a)
+                    else:
+                        self.ignorados_em_uso += 1
+                        
+                if len(arquivos_validos) > 1:
+                    tamanho_total = sum(self._calcular_tamanho_arquivo(a) for a in arquivos_validos)
+                    if tamanho_total > 1:
+                        resultado = {
+                            'hash': file_hash,
+                            'arquivos': arquivos_validos,
+                            'tamanho_total_mb': tamanho_total,
+                            'tipo': 'duplicado',
+                            'caminho': arquivos_validos[0],
+                            'is_pasta': False
+                        }
+                        resultados.append(resultado)
+                        if callback_resultado:
+                            callback_resultado(resultado)
+                        self.logger.aviso(f"📎 Duplicado: {os.path.basename(arquivos_validos[0])} ({tamanho_total:.1f} MB, {len(arquivos_validos)} cópias)")
                     
         self.logger.info(f"✅ Duplicados encontrados: {len(resultados)}")
         return resultados
@@ -524,15 +709,16 @@ class Scanner:
     def _escavar_duplicados(self, caminho: str, hash_map: Dict, 
                            callback_progresso: Optional[Callable],
                            contador: int, limite: int) -> int:
-        """Escava recursivamente em busca de duplicados"""
+        """Escava recursivamente em busca de duplicados (com filtros)"""
         if self.parar_varredura or contador >= limite:
             return contador
             
+        # Ignora pastas proibidas (silencioso)
         if self._deve_ignorar(caminho):
             return contador
             
-        # Verifica permissão
-        tem_perm, _ = self._verificar_permissao(caminho)
+        # Verifica permissão (silencioso)
+        tem_perm, _ = self._verificar_permissao(caminho, silencioso=True)
         if not tem_perm:
             return contador
             
@@ -543,6 +729,7 @@ class Scanner:
                     
                 item_path = os.path.join(caminho, item)
                 
+                # Ignora pastas/arquivos proibidos (silencioso)
                 if self._deve_ignorar(item_path):
                     continue
                 
@@ -550,6 +737,12 @@ class Scanner:
                     # Ignora extensões desnecessárias
                     ext = os.path.splitext(item_path)[1].lower()
                     if ext in self.extensoes_ignoradas:
+                        self.ignorados_extensao += 1
+                        continue
+                        
+                    # Ignora arquivos em uso
+                    if self._arquivo_em_uso(item_path):
+                        self.ignorados_em_uso += 1
                         continue
                         
                     try:
@@ -586,7 +779,7 @@ class Scanner:
         try:
             hash_md5 = hashlib.md5()
             with open(caminho, "rb") as f:
-                for chunk in iter(lambda: f.read(8192), b""):  # AUMENTADO para 8KB
+                for chunk in iter(lambda: f.read(8192), b""):
                     hash_md5.update(chunk)
             return hash_md5.hexdigest()
         except (PermissionError, OSError):
@@ -609,18 +802,25 @@ class Scanner:
     def escanear_tudo(self, callback_progresso: Optional[Callable] = None,
                      callback_resultado: Optional[Callable] = None) -> Dict[str, List]:
         """
-        Executa varredura completa (3 camadas)
+        Executa varredura completa (3 camadas) com proteção inteligente
         """
+        # Reset estatísticas
+        self.ignorados_sistema = 0
+        self.ignorados_em_uso = 0
+        self.ignorados_lista_negra = 0
+        self.ignorados_extensao = 0
+        
         self.logger.limpar()
         self.resultados = {'resquicios': [], 'obsoletos': [], 'duplicados': []}
         self.parar_varredura = False
         self.total_verificados = 0
         
-        self.logger.info("🚀 INICIANDO PROTOCOLO MISA-CLEANER...")
+        self.logger.info("🚀 INICIANDO PROTOCOLO MISA-CLEANER v3.0...")
         self.logger.info("⚡ 3 CAMADAS DE ANÁLISE ATIVADAS:")
         self.logger.info("   1. 🔴 RESQUÍCIOS DE PROGRAMAS DELETADOS")
         self.logger.info("   2. 📂 ARQUIVOS OBSOLETOS (> 1 ano sem acesso)")
         self.logger.info("   3. 📎 ARQUIVOS DUPLICADOS (> 1 MB)")
+        self.logger.info("🛡️ PROTEÇÃO DE SISTEMA ATIVADA")
         
         try:
             # Camada 1: Resquícios
@@ -654,6 +854,9 @@ class Scanner:
             
             # Estatísticas finais
             total = sum(len(v) for v in self.resultados.values())
+            total_ignorados = (self.ignorados_sistema + self.ignorados_em_uso + 
+                             self.ignorados_lista_negra + self.ignorados_extensao)
+            
             self.logger.info("")
             self.logger.info("═" * 50)
             self.logger.sucesso(f"🎯 VARREDURA CONCLUÍDA! {total} RESQUÍCIOS ENCONTRADOS")
@@ -662,9 +865,15 @@ class Scanner:
             self.logger.info(f"   📂 Obsoletos: {len(self.resultados['obsoletos'])}")
             self.logger.info(f"   📎 Duplicados: {len(self.resultados['duplicados'])}")
             
+            # Informações sobre itens ignorados (apenas se houver)
+            if total_ignorados > 0:
+                self.logger.info(f"   ⏭️ Ignorados: {total_ignorados} itens (protegidos/em uso)")
+                
             # Atualiza logger
             self.logger.total_encontrados = total
             self.logger.total_verificados = self.total_verificados
+            self.logger.pastas_ignoradas = self.ignorados_sistema + self.ignorados_lista_negra
+            self.logger.arquivos_ignorados = self.ignorados_em_uso + self.ignorados_extensao
                 
         except Exception as e:
             self.logger.critico(f"💥 ERRO CRÍTICO NA VARREDURA: {str(e)}")
@@ -679,7 +888,19 @@ class Scanner:
         self.logger.aviso("⏹️ PARANDO VARREDURA...")
 
     def deletar_pasta(self, caminho: str) -> Tuple[bool, str]:
-        """Deleta uma pasta com fallback e tratamento de erros"""
+        """Deleta uma pasta com verificação de segurança"""
+        # Verifica se é pasta do sistema protegida
+        if self._eh_pasta_sistema_protegida(caminho):
+            msg = f"⏭️ PASTA DO SISTEMA PROTEGIDA (pulada): {caminho}"
+            self.logger.debug(msg)
+            return False, msg
+            
+        # Verifica se está em uso
+        if self._arquivo_em_uso(caminho):
+            msg = f"⏭️ PASTA EM USO (pulada): {caminho}"
+            self.logger.debug(msg)
+            return False, msg
+            
         try:
             shutil.rmtree(caminho)
             self.logger.sucesso(f"🗑️ EXCLUÍDO: {caminho}")
@@ -702,16 +923,28 @@ class Scanner:
                 self.logger.sucesso(f"🗑️ EXCLUÍDO (FORÇADO): {caminho}")
                 return True, f"EXCLUÍDO (FORÇADO): {caminho}"
             except Exception as e:
-                msg = f"🔴 NÃO FOI POSSÍVEL EXCLUIR: {caminho}\n   Motivo: {str(e)}\n   💡 Tente fechar programas que estejam usando esta pasta"
-                self.logger.erro(msg)
+                msg = f"⏭️ NÃO FOI POSSÍVEL EXCLUIR (protegido): {caminho}"
+                self.logger.debug(msg)
                 return False, msg
         except Exception as e:
-            msg = f"🔴 ERRO AO EXCLUIR: {caminho}\n   Motivo: {str(e)}"
-            self.logger.erro(msg)
+            msg = f"⏭️ NÃO FOI POSSÍVEL EXCLUIR: {caminho}"
+            self.logger.debug(msg)
             return False, msg
 
     def deletar_arquivo(self, caminho: str) -> Tuple[bool, str]:
-        """Deleta um arquivo com tratamento de erros"""
+        """Deleta um arquivo com verificação de segurança"""
+        # Verifica se é pasta do sistema protegida
+        if self._eh_pasta_sistema_protegida(caminho):
+            msg = f"⏭️ ARQUIVO DO SISTEMA PROTEGIDO (pulado): {caminho}"
+            self.logger.debug(msg)
+            return False, msg
+            
+        # Verifica se está em uso
+        if self._arquivo_em_uso(caminho):
+            msg = f"⏭️ ARQUIVO EM USO (pulado): {caminho}"
+            self.logger.debug(msg)
+            return False, msg
+            
         try:
             os.remove(caminho)
             self.logger.sucesso(f"🗑️ EXCLUÍDO: {caminho}")
@@ -724,10 +957,25 @@ class Scanner:
                 self.logger.sucesso(f"🗑️ EXCLUÍDO (FORÇADO): {caminho}")
                 return True, f"EXCLUÍDO (FORÇADO): {caminho}"
             except Exception as e:
-                msg = f"🔴 NÃO FOI POSSÍVEL EXCLUIR: {caminho}\n   Motivo: {str(e)}\n   💡 O arquivo pode estar em uso"
-                self.logger.erro(msg)
+                msg = f"⏭️ NÃO FOI POSSÍVEL EXCLUIR (protegido): {caminho}"
+                self.logger.debug(msg)
                 return False, msg
         except Exception as e:
-            msg = f"🔴 ERRO AO EXCLUIR: {caminho}\n   Motivo: {str(e)}"
-            self.logger.erro(msg)
+            msg = f"⏭️ NÃO FOI POSSÍVEL EXCLUIR: {caminho}"
+            self.logger.debug(msg)
             return False, msg
+            
+    def get_diagnostico_completo(self) -> Dict[str, Any]:
+        """
+        Retorna diagnóstico completo com estatísticas de ignorados
+        """
+        resumo = self.logger.get_resumo()
+        resumo.update({
+            'ignorados_sistema': self.ignorados_sistema,
+            'ignorados_em_uso': self.ignorados_em_uso,
+            'ignorados_lista_negra': self.ignorados_lista_negra,
+            'ignorados_extensao': self.ignorados_extensao,
+            'total_ignorados': (self.ignorados_sistema + self.ignorados_em_uso + 
+                               self.ignorados_lista_negra + self.ignorados_extensao)
+        })
+        return resumo

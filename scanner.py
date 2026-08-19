@@ -22,19 +22,36 @@ class Scanner:
             os.path.expanduser('~')
         ]
         
-        # Pastas a serem ignoradas (sistema)
+        # ==========================================
+        # 🛡️ LISTA DE PASTAS IGNORADAS (INTELIGENTE)
+        # ==========================================
         self.pastas_ignoradas = [
-            "C:\\Windows", "C:\\Program Files", "C:\\Program Files (x86)",
-            "C:\\System32", "C:\\Users\\Public", "C:\\$Recycle.Bin",
-            "C:\\System Volume Information", "D:\\System Volume Information",
-            "C:\\Windows\\WinSxS", "C:\\Windows\\Installer"
+            # Pastas críticas do Windows
+            "C:\\Windows", "C:\\System32", "C:\\$Recycle.Bin",
+            "C:\\System Volume Information", "C:\\Windows\\WinSxS", "C:\\Windows\\Installer",
+            
+            # Pastas de usuário que não devem ser varridas por completo
+            "C:\\Users\\Public", os.path.join(os.path.expanduser('~'), 'AppData', 'Local', 'Temp'),
+            
+            # 🟢 DETECÇÃO AUTOMÁTICA DO GITHUB DESKTOP
+            # Se o GitHub Desktop estiver instalado, essa pasta será ignorada
+            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'GitHubDesktop'),
+            
+            # 🟢 DETECÇÃO AUTOMÁTICA DO VS CODE
+            # Para não dar erro nos resquícios de extensões ou source maps do VS Code
+            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Programs', 'Microsoft VS Code'),
+            os.path.join(os.environ.get('APPDATA', ''), 'Code'),
+            
+            # Pastas comuns de desenvolvimento que geram muitos arquivos inúteis
+            "node_modules", ".git", ".venv", "__pycache__"
         ]
-        
+        # ==========================================
+
         # Programas conhecidos para verificar resquícios
         self.programas_conhecidos = [
             'Adobe', 'Photoshop', 'Illustrator', 'Premiere', 'AfterEffects',
             'Spotify', 'Steam', 'Discord', 'Slack',
-            'Zoom', 'Teams', 'Notion', 'Obsidian', 'VSCode', 'Visual Studio',
+            'Zoom', 'Teams', 'Notion', 'Obsidian',
             'Git', 'Node.js', 'Python', 'Anaconda', 'Chrome',
             'Firefox', 'Edge', 'Opera', 'Brave', 'Vivaldi',
             'Minecraft', 'Epic Games', 'Origin', 'Ubisoft', 'GOG',
@@ -50,7 +67,6 @@ class Scanner:
 
     def verificar_se_programa_existe(self, nome_programa):
         """Verifica se um programa ainda está instalado no sistema"""
-        # Verifica nas pastas de programas
         for pasta in self.pastas_sistema[:3]:
             if not pasta:
                 continue
@@ -91,16 +107,15 @@ class Scanner:
                     if not os.path.isdir(caminho_item):
                         continue
                     
-                    # Verifica se deve ignorar esta pasta
-                    if any(caminho_item.startswith(ign) for ign in self.pastas_ignoradas):
+                    # 🛡️ Verifica se deve ignorar esta pasta (proteção contra falsos positivos)
+                    if self._deve_ignorar(caminho_item):
                         continue
                         
                     for programa in self.programas_conhecidos:
                         if programa.lower() in item.lower():
-                            # Verifica se o programa ainda existe
                             if not self.verificar_se_programa_existe(programa):
                                 tamanho = self.calcular_tamanho(caminho_item)
-                                if tamanho > 1:  # Mais de 1MB
+                                if tamanho > 1:
                                     resultado = {
                                         'caminho': caminho_item,
                                         'tamanho_mb': tamanho,
@@ -143,8 +158,8 @@ class Scanner:
         if self.parar_varredura:
             return
         
-        # Verifica se deve ignorar esta pasta
-        if any(caminho.startswith(ign) for ign in self.pastas_ignoradas):
+        # 🛡️ Verifica se deve ignorar esta pasta
+        if self._deve_ignorar(caminho):
             return
             
         try:
@@ -160,7 +175,7 @@ class Scanner:
                     if ultimo_acesso < data_limite:
                         if os.path.isdir(item_path):
                             tamanho = self.calcular_tamanho(item_path)
-                            if tamanho > 1:  # Mais de 1MB
+                            if tamanho > 1:
                                 resultado = {
                                     'caminho': item_path,
                                     'tamanho_mb': tamanho,
@@ -189,7 +204,7 @@ class Scanner:
         hash_map = {}
         pastas_para_varer = [p for p in self.pastas_sistema if p and os.path.exists(p)]
         arquivos_verificados = 0
-        limite_arquivos = 1000  # Limite para não travar o sistema
+        limite_arquivos = 1000
         
         for pasta in pastas_para_varer:
             if self.parar_varredura:
@@ -203,7 +218,6 @@ class Scanner:
             except (PermissionError, OSError):
                 continue
                 
-        # Identifica duplicados
         for file_hash, arquivos in hash_map.items():
             if len(arquivos) > 1:
                 tamanho_total = sum(self.calcular_tamanho_arquivo(a) for a in arquivos)
@@ -213,7 +227,7 @@ class Scanner:
                         'arquivos': arquivos,
                         'tamanho_total_mb': tamanho_total,
                         'tipo': 'duplicado',
-                        'caminho': arquivos[0]  # Mostra o primeiro como referência
+                        'caminho': arquivos[0]
                     }
                     resultados.append(resultado)
                     if callback_resultado:
@@ -226,8 +240,8 @@ class Scanner:
         if self.parar_varredura or contador >= limite:
             return contador
             
-        # Verifica se deve ignorar esta pasta
-        if any(caminho.startswith(ign) for ign in self.pastas_ignoradas):
+        # 🛡️ Verifica se deve ignorar esta pasta
+        if self._deve_ignorar(caminho):
             return contador
             
         try:
@@ -240,7 +254,7 @@ class Scanner:
                 if os.path.isfile(item_path):
                     try:
                         tamanho = os.path.getsize(item_path) / (1024 * 1024)
-                        if tamanho > 1:  # Só verifica arquivos > 1MB
+                        if tamanho > 1:
                             file_hash = self.calcular_hash(item_path)
                             if file_hash:
                                 if file_hash not in hash_map:
@@ -261,6 +275,16 @@ class Scanner:
             pass
             
         return contador
+
+    def _deve_ignorar(self, caminho):
+        """🛡️ Função auxiliar para verificar se um caminho deve ser ignorado"""
+        for ignorado in self.pastas_ignoradas:
+            # Verifica se o caminho começa com a pasta ignorada
+            # ou se a pasta ignorada é uma subpasta do caminho (ex: node_modules dentro de qualquer projeto)
+            if caminho and ignorado:
+                if caminho.startswith(ignorado) or ignorado in caminho.split(os.sep):
+                    return True
+        return False
 
     def calcular_tamanho(self, caminho):
         """Calcula o tamanho de uma pasta em MB"""
@@ -334,11 +358,9 @@ class Scanner:
         return self.resultados
 
     def parar(self):
-        """Para a varredura em execução"""
         self.parar_varredura = True
 
     def deletar_pasta(self, caminho):
-        """Deleta uma pasta e todo seu conteúdo"""
         try:
             shutil.rmtree(caminho)
             return True, f"EXCLUÍDO: {caminho}"
@@ -346,7 +368,6 @@ class Scanner:
             return False, f"ERRO: {str(e)}"
 
     def deletar_arquivo(self, caminho):
-        """Deleta um arquivo individual"""
         try:
             os.remove(caminho)
             return True, f"EXCLUÍDO: {caminho}"
@@ -354,12 +375,10 @@ class Scanner:
             return False, f"ERRO: {str(e)}"
 
     def mover_para_lixeira(self, caminho):
-        """Move um arquivo/pasta para a lixeira (Windows)"""
         try:
             import ctypes
             from ctypes import wintypes
-
-            # Usa a API do Windows para mover para a lixeira
+            
             class SHFILEOPSTRUCTW(ctypes.Structure):
                 _fields_ = [
                     ('hwnd', ctypes.c_void_p),
@@ -377,16 +396,13 @@ class Scanner:
             FOF_NOCONFIRMATION = 0x0010
             FOF_SILENT = 0x0004
             
-            # Prepara o caminho (deve terminar com dois null terminators)
             caminho_unicode = caminho + '\0\0'
             
-            # Cria a estrutura
             operation = SHFILEOPSTRUCTW()
             operation.wFunc = FO_DELETE
             operation.pFrom = caminho_unicode
             operation.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT
             
-            # Executa
             result = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(operation))
             
             if result == 0:
@@ -395,5 +411,4 @@ class Scanner:
                 return False, f"ERRO AO MOVER PARA LIXEIRA: {caminho}"
                 
         except Exception as e:
-            # Fallback para exclusão direta se a lixeira falhar
             return self.deletar_pasta(caminho)

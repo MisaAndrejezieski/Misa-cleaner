@@ -10,7 +10,7 @@ from tkinter import messagebox, ttk
 from typing import Dict, List, Optional
 
 from logger import Logger, LogNivel
-from matrix_rain import MatrixFullscreen
+from matrix_rain import MatrixRain
 from scanner import Scanner
 
 
@@ -50,7 +50,7 @@ class MisaCleanerUI:
         self.varrendo = False
         self.scanner_thread: Optional[threading.Thread] = None
         
-        # Matrix Fullscreen (tela cheia durante varredura)
+        # Matrix Rain (tela cheia durante varredura)
         self.matrix = None
         
         # Construir interface
@@ -70,15 +70,9 @@ class MisaCleanerUI:
         
     def _on_log(self, mensagem: str, nivel: str = LogNivel.INFO):
         """Callback do logger para exibir na UI"""
-        # Escreve no terminal principal (se existir)
         if hasattr(self, 'terminal') and self.terminal:
             destaque = nivel in [LogNivel.SUCESSO, LogNivel.CRITICO]
             self._escrever_terminal(f">> {mensagem}", nivel, destaque)
-        
-        # ESCREVE NO MATRIX FULLSCREEN (se estiver ativo)
-        if self.matrix:
-            destaque = nivel in [LogNivel.SUCESSO, LogNivel.CRITICO]
-            self.matrix.escrever(f">> {mensagem}", nivel, destaque)
             
     def _setup_ui(self):
         """Constrói a interface completa"""
@@ -398,31 +392,26 @@ class MisaCleanerUI:
             bg=self.cores['bg']
         ).pack(side=tk.RIGHT)
 
-    # ===== 🌟 MATRIX FULLSCREEN - TELA INTEIRA =====
+    # ============================================
+    # 🌟 MATRIX RAIN - TELA CHEIA (SÓ A CHUVA!)
+    # ============================================
     
     def _ativar_matrix(self):
-        """🌟 TELA INTEIRA VIROU MATRIX!"""
+        """🌟 ATIVA A CHUVA MATRIX EM TELA CHEIA - SEM TEXTO!"""
         # Remove a interface
         self.main_frame.pack_forget()
         
-        # Cria a Matrix em tela cheia
-        self.matrix = MatrixFullscreen(self.root)
+        # 🌟 CRIA APENAS A CHUVA - SEM TEXTO, SEM NADA!
+        self.matrix = MatrixRain(self.root)
         self.matrix.iniciar()
-        
-        # Mensagem inicial
-        self.matrix.escrever("╔══════════════════════════════════════════════════╗", "INFO")
-        self.matrix.escrever("║     🌟 M A T R I X   M O D E   A T I V O     ║", "SUCESSO")
-        self.matrix.escrever("╚══════════════════════════════════════════════════╝", "INFO")
-        self.matrix.escrever("")
-        self.matrix.escrever(">> A CHUVA DE CÓDIGO ESTÁ CAINDO...", "INFO")
-        self.matrix.escrever(">> VARREDURA EM ANDAMENTO...", "INFO")
         
         self.root.update()
         
     def _desativar_matrix(self):
-        """🌟 VOLTA PARA A INTERFACE NORMAL"""
+        """🌟 DESATIVA A CHUVA E RESTAURA A INTERFACE"""
         if self.matrix:
-            self.matrix.destruir()
+            self.matrix.parar()
+            self.matrix.destroy()
             self.matrix = None
         
         # Restaura a interface
@@ -491,15 +480,13 @@ class MisaCleanerUI:
         self.result_count.config(text="(0)")
         self.resultados = []
         
-        # 🌟 ATIVA A CHUVA MATRIX (TELA CHEIA)
+        # 🌟 ATIVA A CHUVA MATRIX (TELA CHEIA - SEM TEXTO!)
         self._ativar_matrix()
         
         self.varrendo = True
         self.btn_iniciar.config(state=tk.DISABLED)
         self.btn_parar.config(state=tk.NORMAL)
         self.btn_deletar.config(state=tk.DISABLED)
-        
-        self.status_label.config(text="🔄 VARRENDO SISTEMA... [MATRIX MODE]", fg=self.cores['neon_amarelo'])
         
         # Iniciar thread
         self.scanner_thread = threading.Thread(target=self._executar_varredura)
@@ -528,9 +515,7 @@ class MisaCleanerUI:
             
     def _atualizar_progresso(self, caminho: str):
         """Atualiza o progresso (callback da thread)"""
-        if self.scanner.total_verificados % 10 == 0:
-            nome = os.path.basename(caminho) if caminho else "?"
-            self.logger.debug(f"🔍 Verificando: {nome[:40]}...")
+        pass  # NÃO FAZ NADA - SÓ A CHUVA!
             
     def _adicionar_resultado(self, item: Dict):
         """Adiciona resultado (callback da thread)"""

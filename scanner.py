@@ -3,9 +3,6 @@ import os
 import shutil
 from datetime import datetime, timedelta
 
-from matrix_style import (AMARELO, VERDE_ESCURO, VERDE_MATRIX, VERMELHO,
-                          imprimir_matrix)
-
 
 class Scanner:
     def __init__(self):
@@ -16,7 +13,7 @@ class Scanner:
         }
         self.parar_varredura = False
         
-        # Pastas comuns de programas para verificar
+        # Pastas comuns de programas
         self.pastas_sistema = [
             os.environ.get('APPDATA', ''),
             os.environ.get('LOCALAPPDATA', ''),
@@ -25,17 +22,18 @@ class Scanner:
             os.path.expanduser('~')
         ]
         
-        # Programas conhecidos (para verificar se ainda existem)
+        # Programas conhecidos para verificar resquícios
         self.programas_conhecidos = [
             'Adobe', 'Spotify', 'Steam', 'Discord', 'Slack',
             'Zoom', 'Teams', 'Notion', 'Obsidian', 'VSCode',
             'Git', 'Node.js', 'Python', 'Anaconda', 'Chrome',
-            'Firefox', 'Edge', 'Opera', 'Brave', 'Vivaldi'
+            'Firefox', 'Edge', 'Opera', 'Brave', 'Vivaldi',
+            'Photoshop', 'Illustrator', 'Premiere', 'AfterEffects',
+            'Minecraft', 'Epic Games', 'Origin', 'Ubisoft'
         ]
 
     def verificar_se_programa_existe(self, nome_programa):
         """Verifica se um programa ainda está instalado"""
-        # Verifica nas pastas de programas
         for pasta in self.pastas_sistema[:3]:
             if not pasta:
                 continue
@@ -44,7 +42,7 @@ class Scanner:
                 return True
         return False
 
-    def encontrar_resquicios_programas(self, callback_progresso=None):
+    def encontrar_resquicios_programas(self, callback_progresso=None, callback_resultado=None):
         """Encontra pastas de programas que foram deletados"""
         resultados = []
         
@@ -61,23 +59,21 @@ class Scanner:
                     if not os.path.isdir(caminho_item):
                         continue
                         
-                    # Verifica se o item está na lista de programas conhecidos
                     for programa in self.programas_conhecidos:
                         if programa.lower() in item.lower():
                             if not self.verificar_se_programa_existe(programa):
                                 tamanho = self.calcular_tamanho(caminho_item)
-                                if tamanho > 1:  # Mais de 1MB
-                                    resultados.append({
+                                if tamanho > 1:
+                                    resultado = {
                                         'caminho': caminho_item,
                                         'tamanho_mb': tamanho,
                                         'tipo': 'resquicio',
                                         'programa': programa,
                                         'ultimo_acesso': self.obter_ultimo_acesso(caminho_item)
-                                    })
-                                    imprimir_matrix(
-                                        f"🔍 RESQUÍCIO ENCONTRADO: {programa} - {caminho_item}",
-                                        cor=AMARELO
-                                    )
+                                    }
+                                    resultados.append(resultado)
+                                    if callback_resultado:
+                                        callback_resultado(resultado)
                             break
                     
                     if callback_progresso:
@@ -88,25 +84,24 @@ class Scanner:
                 
         return resultados
 
-    def encontrar_obsoletos(self, callback_progresso=None):
+    def encontrar_obsoletos(self, callback_progresso=None, callback_resultado=None):
         """Encontra arquivos e pastas não acessados há mais de 1 ano"""
         resultados = []
         um_ano_atras = datetime.now() - timedelta(days=365)
         
-        # Pastas a serem varridas
         pastas_para_varer = [p for p in self.pastas_sistema if p and os.path.exists(p)]
         
         for pasta in pastas_para_varer:
             if self.parar_varredura:
                 return resultados
             try:
-                self._escavar_obsoletos(pasta, um_ano_atras, resultados, callback_progresso)
+                self._escavar_obsoletos(pasta, um_ano_atras, resultados, callback_progresso, callback_resultado)
             except (PermissionError, OSError):
                 continue
                 
         return resultados
 
-    def _escavar_obsoletos(self, caminho, data_limite, resultados, callback_progresso):
+    def _escavar_obsoletos(self, caminho, data_limite, resultados, callback_progresso, callback_resultado):
         """Função recursiva para encontrar arquivos obsoletos"""
         if self.parar_varredura:
             return
@@ -125,19 +120,18 @@ class Scanner:
                         if os.path.isdir(item_path):
                             tamanho = self.calcular_tamanho(item_path)
                             if tamanho > 1:
-                                resultados.append({
+                                resultado = {
                                     'caminho': item_path,
                                     'tamanho_mb': tamanho,
                                     'tipo': 'obsoleto',
                                     'ultimo_acesso': ultimo_acesso
-                                })
-                                imprimir_matrix(
-                                    f"📂 OBSOLETO: {os.path.basename(item_path)} - {tamanho:.1f}MB",
-                                    cor=VERDE_ESCURO
-                                )
+                                }
+                                resultados.append(resultado)
+                                if callback_resultado:
+                                    callback_resultado(resultado)
                     
                     if os.path.isdir(item_path):
-                        self._escavar_obsoletos(item_path, data_limite, resultados, callback_progresso)
+                        self._escavar_obsoletos(item_path, data_limite, resultados, callback_progresso, callback_resultado)
                         
                 except (PermissionError, OSError):
                     continue
@@ -148,7 +142,7 @@ class Scanner:
         except (PermissionError, OSError):
             pass
 
-    def encontrar_duplicados(self, callback_progresso=None):
+    def encontrar_duplicados(self, callback_progresso=None, callback_resultado=None):
         """Encontra arquivos duplicados baseado no hash MD5"""
         resultados = []
         hash_map = {}
@@ -162,17 +156,20 @@ class Scanner:
             except (PermissionError, OSError):
                 continue
                 
-        # Identifica duplicados
         for file_hash, arquivos in hash_map.items():
             if len(arquivos) > 1:
-                # Só considera duplicados se todos forem > 1MB
                 tamanho_total = sum(self.calcular_tamanho_arquivo(a) for a in arquivos)
                 if tamanho_total > 1:
-                    resultados.append({
+                    resultado = {
                         'hash': file_hash,
                         'arquivos': arquivos,
-                        'tamanho_total_mb': tamanho_total
-                    })
+                        'tamanho_total_mb': tamanho_total,
+                        'tipo': 'duplicado',
+                        'caminho': arquivos[0]  # Mostra o primeiro como referência
+                    }
+                    resultados.append(resultado)
+                    if callback_resultado:
+                        callback_resultado(resultado)
                     
         return resultados
 
@@ -191,7 +188,7 @@ class Scanner:
                 if os.path.isfile(item_path):
                     try:
                         tamanho = os.path.getsize(item_path) / (1024 * 1024)
-                        if tamanho > 1:  # Só verifica arquivos > 1MB
+                        if tamanho > 1:
                             file_hash = self.calcular_hash(item_path)
                             if file_hash:
                                 if file_hash not in hash_map:
@@ -249,12 +246,6 @@ class Scanner:
 
     def escanear_tudo(self, callback_progresso=None, callback_resultado=None):
         """Executa todos os tipos de varredura"""
-        imprimir_matrix(">> INICIANDO VARREDURA MATRIX...", delay=0.03)
-        imprimir_matrix(">> 3 CAMADAS DE ANÁLISE:", delay=0.02)
-        imprimir_matrix("   1. RESQUÍCIOS DE PROGRAMAS DELETADOS", delay=0.02)
-        imprimir_matrix("   2. ARQUIVOS OBSOLETOS", delay=0.02)
-        imprimir_matrix("   3. ARQUIVOS DUPLICADOS", delay=0.02)
-        
         self.resultados = {
             'resquicios': [],
             'obsoletos': [],
@@ -263,44 +254,37 @@ class Scanner:
         self.parar_varredura = False
         
         # 1. Resquícios
-        imprimir_matrix("\n>> CAMADA 1: CAÇANDO RESQUÍCIOS...", cor=VERDE_MATRIX)
-        self.resultados['resquicios'] = self.encontrar_resquicios_programas(callback_progresso)
+        self.resultados['resquicios'] = self.encontrar_resquicios_programas(
+            callback_progresso, callback_resultado
+        )
         
         # 2. Obsoletos
         if not self.parar_varredura:
-            imprimir_matrix("\n>> CAMADA 2: COLETANDO OBSOLETOS...", cor=VERDE_MATRIX)
-            self.resultados['obsoletos'] = self.encontrar_obsoletos(callback_progresso)
+            self.resultados['obsoletos'] = self.encontrar_obsoletos(
+                callback_progresso, callback_resultado
+            )
         
         # 3. Duplicados
         if not self.parar_varredura:
-            imprimir_matrix("\n>> CAMADA 3: DETECTANDO DUPLICADOS...", cor=VERDE_MATRIX)
-            self.resultados['duplicados'] = self.encontrar_duplicados(callback_progresso)
+            self.resultados['duplicados'] = self.encontrar_duplicados(
+                callback_progresso, callback_resultado
+            )
         
-        total = (len(self.resultados['resquicios']) + 
-                len(self.resultados['obsoletos']) + 
-                len(self.resultados['duplicados']))
-        
-        imprimir_matrix(f"\n>> VARREDURA CONCLUÍDA! {total} RESQUÍCIOS ENCONTRADOS.", cor=VERDE_MATRIX)
         return self.resultados
 
     def parar(self):
         self.parar_varredura = True
-        imprimir_matrix(">> PROTOCOLO DE PARADA INICIADO.", cor=VERDE_ESCURO)
 
     def deletar_pasta(self, caminho):
         try:
             shutil.rmtree(caminho)
-            imprimir_matrix(f">> EXCLUSÃO CONFIRMADA: {caminho}", cor=VERDE_ESCURO)
             return True, f"EXCLUÍDO: {caminho}"
         except Exception as e:
-            imprimir_matrix(f">> ERRO NA EXCLUSÃO: {caminho}", cor=VERMELHO)
             return False, f"ERRO: {str(e)}"
 
     def deletar_arquivo(self, caminho):
         try:
             os.remove(caminho)
-            imprimir_matrix(f">> ARQUIVO EXCLUÍDO: {caminho}", cor=VERDE_ESCURO)
             return True, f"EXCLUÍDO: {caminho}"
         except Exception as e:
-            imprimir_matrix(f">> ERRO NA EXCLUSÃO: {caminho}", cor=VERMELHO)
             return False, f"ERRO: {str(e)}"

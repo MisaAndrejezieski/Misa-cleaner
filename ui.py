@@ -1,224 +1,20 @@
 """
 MISA-CLEANER - Interface Matrix Imersiva
-Design profissional com tema escuro/neon e terminal em tela cheia
+COM EFEITO MATRIX REAL EM TELA CHEIA DURANTE A VARREDURA
 """
 import os
-import random
-import subprocess
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from logger import Logger, LogNivel
+from matrix_rain import MatrixOverlay
 from scanner import Scanner
 
 
-class MatrixRain(tk.Canvas):
-    """
-    Efeito de chuva Matrix animada no fundo
-    """
-    
-    def __init__(self, parent, *args, **kwargs):
-        super().__init__(parent, *args, **kwargs)
-        self.configure(bg='#000000', highlightthickness=0)
-        
-        self.parent = parent
-        self.linhas = []
-        self.animando = True
-        self.colunas = 60
-        
-        # Caracteres Matrix
-        self.caracteres = [
-            '日', '本', '語', 'の', '文', '字', 'を', '使', 'っ', 'て', 'い', 'ま', 'す',
-            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-            '!', '@', '#', '$', '%', '&', '*', '+', '=', '~',
-            '├', '┤', '╡', '╢', '╖', '╕', '╣', '║', '╗', '╝', '╜', '╛', '┐',
-            '└', '┴', '┬', '├', '┤', '┼', '╞', '╟', '╚', '╔', '╩', '╦', '╠', '═'
-        ]
-        
-        # Inicializar colunas
-        self._iniciar_chuva()
-        
-        # Bind para redimensionamento
-        self.bind('<Configure>', self._on_resize)
-        
-    def _iniciar_chuva(self):
-        """Inicializa as colunas da chuva"""
-        self.linhas = []
-        largura = self.winfo_width() or 800
-        altura = self.winfo_height() or 600
-        
-        for i in range(self.colunas):
-            self.linhas.append({
-                'x': random.randint(0, largura),
-                'y': random.randint(-100, altura),
-                'velocidade': random.uniform(0.5, 3.0),
-                'comprimento': random.randint(5, 15),
-                'caracteres': self.caracteres
-            })
-            
-    def _on_resize(self, event):
-        """Reinicia a chuva ao redimensionar"""
-        self._iniciar_chuva()
-        
-    def animar(self):
-        """Loop de animação"""
-        if not self.animando:
-            return
-            
-        self.delete("all")
-        
-        largura = self.winfo_width() or 800
-        altura = self.winfo_height() or 600
-        
-        for linha in self.linhas:
-            # Atualizar posição
-            linha['y'] += linha['velocidade']
-            
-            if linha['y'] > altura + 100:
-                linha['y'] = random.randint(-50, -10)
-                linha['x'] = random.randint(0, largura)
-                linha['velocidade'] = random.uniform(0.5, 3.0)
-                linha['comprimento'] = random.randint(5, 15)
-                
-            # Desenhar caracteres (cabeça mais brilhante)
-            for i in range(linha['comprimento']):
-                y_pos = linha['y'] - (i * 14)
-                
-                if 0 < y_pos < altura and 0 < linha['x'] < largura:
-                    char = random.choice(linha['caracteres'])
-                    
-                    # Gradiente: cabeça mais brilhante, cauda mais escura
-                    if i == 0:
-                        cor = '#00ff41'  # Verde Matrix brilhante
-                    elif i == 1:
-                        cor = '#00cc33'
-                    elif i == 2:
-                        cor = '#009925'
-                    else:
-                        intensidade = max(0.1, 1.0 - (i / linha['comprimento']))
-                        verde = int(255 * intensidade * 0.6)
-                        cor = f'#00{verde:02x}00'
-                        
-                    self.create_text(
-                        linha['x'], y_pos,
-                        text=char,
-                        fill=cor,
-                        font=('Consolas', random.randint(8, 12)),
-                        tags='matrix'
-                    )
-                    
-        # Chamar próximo frame
-        self.after(50, self.animar)
-        
-    def parar(self):
-        """Para a animação"""
-        self.animando = False
-
-
-class MatrixTerminal(tk.Frame):
-    """
-    Terminal Matrix com texto sobreposto à chuva
-    """
-    
-    def __init__(self, parent, *args, **kwargs):
-        super().__init__(parent, *args, **kwargs)
-        
-        self.configure(bg='#000000')
-        
-        # Fundo Matrix animado
-        self.matrix_bg = MatrixRain(self)
-        self.matrix_bg.place(x=0, y=0, relwidth=1, relheight=1)
-        
-        # Texto sobreposto (com fundo semi-transparente para legibilidade)
-        self.text_frame = tk.Frame(self, bg='#000000')
-        self.text_frame.place(x=10, y=10, relwidth=0.98, relheight=0.98)
-        
-        # Área de texto com scroll
-        self.text_container = tk.Frame(self.text_frame, bg='#000000')
-        self.text_container.pack(fill=tk.BOTH, expand=True)
-        
-        self.scrollbar = tk.Scrollbar(
-            self.text_container,
-            bg='#0a0a0f',
-            troughcolor='#0a0a0f',
-            activebackground='#00ff41',
-            width=10
-        )
-        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        self.text = tk.Text(
-            self.text_container,
-            bg='#000000',
-            fg='#00ff41',
-            font=('Consolas', 10),
-            insertbackground='#00ff41',
-            relief='flat',
-            highlightthickness=0,
-            borderwidth=0,
-            wrap='word',
-            state='normal',
-            yscrollcommand=self.scrollbar.set,
-            spacing1=1,
-            spacing2=1,
-            spacing3=1
-        )
-        self.text.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
-        self.scrollbar.config(command=self.text.yview)
-        
-        # Tags de cores
-        self.text.tag_config(LogNivel.INFO, foreground='#6bcfff')
-        self.text.tag_config(LogNivel.SUCESSO, foreground='#6bffb8')
-        self.text.tag_config(LogNivel.AVISO, foreground='#ffe66d')
-        self.text.tag_config(LogNivel.ERRO, foreground='#ff6b6b')
-        self.text.tag_config(LogNivel.CRITICO, foreground='#ff1744', font=('Consolas', 10, 'bold'))
-        self.text.tag_config(LogNivel.DEBUG, foreground='#8888aa')
-        
-        # Tag para destaque
-        self.text.tag_config('destaque', foreground='#ff6b9d', font=('Consolas', 10, 'bold'))
-        
-        # Limitar tamanho do log
-        self.max_linhas = 200
-        self.linhas = 0
-        
-        self._destroyed = False
-        self.bind('<Destroy>', self._on_destroy)
-        
-    def _on_destroy(self, event):
-        self._destroyed = True
-        if hasattr(self, 'matrix_bg'):
-            self.matrix_bg.parar()
-            
-    def escrever(self, texto: str, nivel: str = LogNivel.INFO, destaque: bool = False):
-        """Escreve texto no terminal com a cor apropriada"""
-        if self._destroyed:
-            return
-            
-        try:
-            self.text.config(state='normal')
-            
-            # Remover linhas antigas se ultrapassar o limite
-            if self.linhas > self.max_linhas:
-                self.text.delete('1.0', f'{self.linhas - self.max_linhas}.0')
-                self.linhas = self.max_linhas
-                
-            # Inserir com a tag de cor
-            tag = 'destaque' if destaque else nivel
-            self.text.insert('end', texto + '\n', tag)
-            self.linhas += 1
-            
-            # Auto-scroll para o final
-            self.text.see('end')
-            self.text.config(state='disabled')
-            self.update_idletasks()
-            
-        except Exception:
-            pass
-
-
 class MisaCleanerUI:
-    """Interface Principal do MISA-CLEANER"""
+    """Interface Principal do MISA-CLEANER com Efeito Matrix"""
     
     def __init__(self, root: tk.Tk):
         self.root = root
@@ -227,10 +23,8 @@ class MisaCleanerUI:
         self.root.title("MISA-CLEANER - Caçador de Resquícios Digitais")
         self.root.configure(bg='#0a0a0f')
         self.root.geometry("1200x900")
-        self.centralizar_janela()
-        
-        # Prevenir redimensionamento mínimo
         self.root.minsize(900, 700)
+        self.centralizar_janela()
         
         # Cores do tema
         self.cores = {
@@ -255,6 +49,9 @@ class MisaCleanerUI:
         self.varrendo = False
         self.scanner_thread: Optional[threading.Thread] = None
         
+        # 🌟 NOVO: Matrix Overlay (tela cheia durante varredura)
+        self.matrix_overlay = None
+        
         # Construir interface
         self._setup_ui()
         
@@ -275,38 +72,42 @@ class MisaCleanerUI:
         if hasattr(self, 'terminal') and self.terminal:
             destaque = nivel in [LogNivel.SUCESSO, LogNivel.CRITICO]
             self.terminal.escrever(f">> {mensagem}", nivel, destaque)
+        
+        # 🌟 Se o Matrix Overlay estiver ativo, também escreve lá
+        if self.matrix_overlay and self.matrix_overlay.winfo_exists():
+            destaque = nivel in [LogNivel.SUCESSO, LogNivel.CRITICO]
+            self.matrix_overlay.escrever(f">> {mensagem}", nivel, destaque)
             
     def _setup_ui(self):
         """Constrói a interface completa"""
         # Frame principal
-        main_frame = tk.Frame(self.root, bg=self.cores['bg'])
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=15)
+        self.main_frame = tk.Frame(self.root, bg=self.cores['bg'])
+        self.main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=15)
         
         # ===== HEADER =====
-        self._criar_header(main_frame)
+        self._criar_header(self.main_frame)
         
-        # ===== TERMINAL MATRIX (OCUPA A MAIOR PARTE DA TELA) =====
-        self._criar_terminal(main_frame)
+        # ===== TERMINAL MATRIX =====
+        self._criar_terminal(self.main_frame)
         
         # ===== BOTÕES DE CONTROLE =====
-        self._criar_botoes(main_frame)
+        self._criar_botoes(self.main_frame)
         
         # ===== RESULTADOS =====
-        self._criar_resultados(main_frame)
+        self._criar_resultados(self.main_frame)
         
         # ===== STATUS =====
-        self._criar_status(main_frame)
+        self._criar_status(self.main_frame)
         
     def _criar_header(self, parent):
         """Cria o cabeçalho do programa"""
         header_frame = tk.Frame(parent, bg=self.cores['bg'])
         header_frame.pack(fill=tk.X, pady=(0, 10))
         
-        # Logo animada com efeito Matrix
+        # Logo
         logo_frame = tk.Frame(header_frame, bg=self.cores['bg'])
         logo_frame.pack(side=tk.LEFT)
         
-        # Título principal com glitch effect (simulado)
         titulo = tk.Label(
             logo_frame,
             text="MISA-CLEANER",
@@ -316,7 +117,6 @@ class MisaCleanerUI:
         )
         titulo.pack(side=tk.LEFT)
         
-        # Efeito de cursor piscando
         cursor = tk.Label(
             logo_frame,
             text="█",
@@ -325,14 +125,15 @@ class MisaCleanerUI:
             bg=self.cores['bg']
         )
         cursor.pack(side=tk.LEFT)
+        self._piscar_cursor(cursor)
         
-        # Versão e subtítulo
+        # Info
         info_frame = tk.Frame(header_frame, bg=self.cores['bg'])
         info_frame.pack(side=tk.LEFT, padx=20)
         
         tk.Label(
             info_frame,
-            text="v2.0 • Caçador de Resquícios Digitais",
+            text="v3.0 • Caçador de Resquícios Digitais",
             font=('Consolas', 10),
             fg=self.cores['neon_verde'],
             bg=self.cores['bg']
@@ -345,9 +146,6 @@ class MisaCleanerUI:
             fg=self.cores['texto_escuro'],
             bg=self.cores['bg']
         ).pack(anchor=tk.W)
-        
-        # Animação do cursor piscando
-        self._piscar_cursor(cursor)
         
     def _piscar_cursor(self, widget):
         """Animação de cursor piscando"""
@@ -363,7 +161,6 @@ class MisaCleanerUI:
         terminal_container = tk.Frame(parent, bg=self.cores['bg'])
         terminal_container.pack(fill=tk.BOTH, expand=True, pady=10)
         
-        # Container com borda neon
         terminal_wrapper = tk.Frame(
             terminal_container,
             bg=self.cores['bg_secundario'],
@@ -373,7 +170,7 @@ class MisaCleanerUI:
         )
         terminal_wrapper.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
         
-        # Label do terminal
+        # Header do terminal
         terminal_header = tk.Frame(terminal_wrapper, bg=self.cores['bg_secundario'])
         terminal_header.pack(fill=tk.X, padx=10, pady=5)
         
@@ -385,7 +182,6 @@ class MisaCleanerUI:
             bg=self.cores['bg_secundario']
         ).pack(side=tk.LEFT)
         
-        # Indicadores de status
         self.status_dots = tk.Label(
             terminal_header,
             text="● ● ●",
@@ -395,16 +191,47 @@ class MisaCleanerUI:
         )
         self.status_dots.pack(side=tk.RIGHT)
         
-        # Terminal
-        self.terminal = MatrixTerminal(
+        # Terminal (sem a chuva, apenas texto)
+        self.terminal = tk.Text(
             terminal_wrapper,
-            height=15  # Altura maior
+            bg='#000000',
+            fg='#00ff41',
+            font=('Consolas', 10),
+            insertbackground='#00ff41',
+            relief='flat',
+            highlightthickness=0,
+            borderwidth=0,
+            wrap='word',
+            state='normal',
+            spacing1=1,
+            spacing2=1,
+            spacing3=1
         )
         self.terminal.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
+        # Tags de cores
+        self.terminal.tag_config('INFO', foreground='#6bcfff')
+        self.terminal.tag_config('SUCESSO', foreground='#6bffb8')
+        self.terminal.tag_config('AVISO', foreground='#ffe66d')
+        self.terminal.tag_config('ERRO', foreground='#ff6b6b')
+        self.terminal.tag_config('CRITICO', foreground='#ff1744', font=('Consolas', 10, 'bold'))
+        self.terminal.tag_config('DEBUG', foreground='#8888aa')
+        self.terminal.tag_config('destaque', foreground='#ff6b9d', font=('Consolas', 10, 'bold'))
+        
         # Mensagem inicial
-        self.logger.info("🚀 SISTEMA PRONTO. Clique em [INICIAR] para começar")
-        self.logger.info("💡 O terminal exibe todas as ações em tempo real")
+        self._escrever_terminal("🚀 SISTEMA PRONTO. Clique em [INICIAR] para começar", 'INFO')
+        self._escrever_terminal("💡 O terminal exibe todas as ações em tempo real", 'INFO')
+        
+    def _escrever_terminal(self, texto: str, nivel: str = 'INFO', destaque: bool = False):
+        """Escreve no terminal com a cor apropriada"""
+        try:
+            self.terminal.config(state='normal')
+            tag = 'destaque' if destaque else nivel
+            self.terminal.insert('end', texto + '\n', tag)
+            self.terminal.see('end')
+            self.terminal.config(state='disabled')
+        except Exception:
+            pass
         
     def _criar_botoes(self, parent):
         """Cria os botões de controle"""
@@ -426,7 +253,6 @@ class MisaCleanerUI:
             'activeforeground': self.cores['neon_verde']
         }
         
-        # Botão Iniciar (com ícone Matrix)
         self.btn_iniciar = tk.Button(
             btn_frame, 
             text="▶ INICIAR VARREDURA", 
@@ -435,7 +261,6 @@ class MisaCleanerUI:
         )
         self.btn_iniciar.pack(side=tk.LEFT, padx=5)
         
-        # Botão Parar
         self.btn_parar = tk.Button(
             btn_frame, 
             text="⏹ PARAR", 
@@ -445,7 +270,6 @@ class MisaCleanerUI:
         )
         self.btn_parar.pack(side=tk.LEFT, padx=5)
         
-        # Botão Deletar
         self.btn_deletar = tk.Button(
             btn_frame, 
             text="🗑 DELETAR SELECIONADOS", 
@@ -455,7 +279,6 @@ class MisaCleanerUI:
         )
         self.btn_deletar.pack(side=tk.LEFT, padx=5)
         
-        # Botão Diagnóstico
         btn_diagnostico = tk.Button(
             btn_frame,
             text="📊 DIAGNÓSTICO",
@@ -469,7 +292,6 @@ class MisaCleanerUI:
         self.result_frame = tk.Frame(parent, bg=self.cores['bg'])
         self.result_frame.pack(fill=tk.BOTH, expand=False, pady=(10, 0))
         
-        # Cabeçalho da tabela
         header_frame = tk.Frame(self.result_frame, bg=self.cores['bg'])
         header_frame.pack(fill=tk.X, pady=(0, 5))
         
@@ -491,11 +313,10 @@ class MisaCleanerUI:
         )
         self.result_count.pack(side=tk.LEFT, padx=10)
         
-        # Treeview estilizada (tema escuro)
+        # Treeview estilizada
         style = ttk.Style()
         style.theme_use('clam')
         
-        # Cores escuras para a tabela
         style.configure('Matrix.Treeview',
             background=self.cores['bg_secundario'],
             foreground=self.cores['texto'],
@@ -516,15 +337,12 @@ class MisaCleanerUI:
             foreground=[('selected', self.cores['texto'])]
         )
         
-        # Container da tabela
         tree_container = tk.Frame(self.result_frame, bg=self.cores['bg'])
         tree_container.pack(fill=tk.BOTH, expand=True)
         
-        # Scrollbars
         vsb = ttk.Scrollbar(tree_container, orient="vertical")
         hsb = ttk.Scrollbar(tree_container, orient="horizontal")
         
-        # Treeview
         columns = ('Tipo', 'Nome', 'Tamanho', 'Caminho')
         self.tree = ttk.Treeview(
             tree_container,
@@ -536,7 +354,6 @@ class MisaCleanerUI:
             xscrollcommand=hsb.set
         )
         
-        # Configurar colunas
         self.tree.heading('Tipo', text='🔍 TIPO')
         self.tree.heading('Nome', text='📄 NOME')
         self.tree.heading('Tamanho', text='📦 TAMANHO')
@@ -550,12 +367,10 @@ class MisaCleanerUI:
         vsb.config(command=self.tree.yview)
         hsb.config(command=self.tree.xview)
         
-        # Layout
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
         hsb.pack(side=tk.BOTTOM, fill=tk.X)
         self.tree.pack(fill=tk.BOTH, expand=True)
         
-        # Evento de duplo clique para abrir
         self.tree.bind("<Double-1>", self.abrir_caminho_selecionado)
         
     def _criar_status(self, parent):
@@ -573,19 +388,50 @@ class MisaCleanerUI:
         )
         self.status_label.pack(side=tk.LEFT)
         
-        # Versão no rodapé
         tk.Label(
             status_frame,
-            text="MISA-CLEANER v2.0 • Matrix Mode",
+            text="MISA-CLEANER v3.0 • Matrix Mode",
             font=('Consolas', 8),
             fg=self.cores['texto_escuro'],
             bg=self.cores['bg']
         ).pack(side=tk.RIGHT)
+
+    # ===== 🌟 NOVO: ATIVAÇÃO DO EFEITO MATRIX =====
+    
+    def _ativar_matrix_overlay(self):
+        """Ativa o efeito Matrix em tela cheia durante a varredura"""
+        if self.matrix_overlay and self.matrix_overlay.winfo_exists():
+            return
+            
+        # Cria o overlay em tela cheia
+        self.matrix_overlay = MatrixOverlay(self.root)
+        self.matrix_overlay.place(x=0, y=0, relwidth=1, relheight=1)
+        self.matrix_overlay.lift()  # Traz para frente
         
+        # Inicia a chuva
+        self.matrix_overlay.iniciar_rain()
+        
+        # Esconde os outros elementos (opcional - mantém visíveis)
+        # self.main_frame.lower()  # Coloca atrás do overlay
+        
+        # Mensagem inicial no overlay
+        self.matrix_overlay.escrever("╔══════════════════════════════════════════════════╗", "INFO")
+        self.matrix_overlay.escrever("║     🌟 M A T R I X   M O D E   A T I V O     ║", "SUCESSO")
+        self.matrix_overlay.escrever("╚══════════════════════════════════════════════════╝", "INFO")
+        self.matrix_overlay.escrever("")
+        self.matrix_overlay.escrever(">> A CHUVA DE CÓDIGO ESTÁ CAINDO...", "INFO")
+        
+    def _desativar_matrix_overlay(self):
+        """Desativa o efeito Matrix"""
+        if self.matrix_overlay and self.matrix_overlay.winfo_exists():
+            self.matrix_overlay.parar_rain()
+            self.matrix_overlay.destroy()
+            self.matrix_overlay = None
+            
     # ===== LÓGICA DE INTERAÇÃO =====
     
     def adicionar_resultado_tabela(self, item: Dict):
-        """Adiciona um resultado à tabela com ícone apropriado"""
+        """Adiciona um resultado à tabela"""
         tipo = item.get('tipo', '').capitalize()
         nome = item.get('programa', '')
         if not nome:
@@ -593,7 +439,6 @@ class MisaCleanerUI:
         tamanho = item.get('tamanho_mb', 0)
         caminho = item.get('caminho', '')
         
-        # Ícones por tipo
         icones = {
             'resquicio': '🔴',
             'obsoleto': '📂',
@@ -606,7 +451,6 @@ class MisaCleanerUI:
             values=(f"{icone} {tipo}", nome, f"{tamanho:.1f} MB", caminho)
         )
         
-        # Atualizar contador
         total = len(self.tree.get_children())
         self.result_count.config(text=f"({total})")
         
@@ -617,7 +461,7 @@ class MisaCleanerUI:
             return
             
         item = self.tree.item(selected[0])
-        caminho = item['values'][3]  # Caminho está na coluna 3
+        caminho = item['values'][3]
         
         if not caminho or not os.path.exists(caminho):
             messagebox.showwarning(
@@ -635,22 +479,25 @@ class MisaCleanerUI:
             messagebox.showerror("Erro", f"Não foi possível abrir o caminho:\n{e}")
             
     def iniciar_varredura(self):
-        """Inicia a varredura em uma thread separada"""
+        """Inicia a varredura com EFEITO MATRIX"""
         if self.varrendo:
             return
             
-        # Limpar resultados anteriores
+        # Limpar resultados
         for item in self.tree.get_children():
             self.tree.delete(item)
         self.result_count.config(text="(0)")
         self.resultados = []
+        
+        # 🌟 ATIVA O EFEITO MATRIX EM TELA CHEIA
+        self._ativar_matrix_overlay()
         
         self.varrendo = True
         self.btn_iniciar.config(state=tk.DISABLED)
         self.btn_parar.config(state=tk.NORMAL)
         self.btn_deletar.config(state=tk.DISABLED)
         
-        self.status_label.config(text="🔄 VARRENDO SISTEMA...", fg=self.cores['neon_amarelo'])
+        self.status_label.config(text="🔄 VARRENDO SISTEMA... [MATRIX MODE]", fg=self.cores['neon_amarelo'])
         
         # Iniciar thread
         self.scanner_thread = threading.Thread(target=self._executar_varredura)
@@ -679,7 +526,6 @@ class MisaCleanerUI:
             
     def _atualizar_progresso(self, caminho: str):
         """Atualiza o progresso (callback da thread)"""
-        # Mostra no terminal a cada 10 arquivos
         if self.scanner.total_verificados % 10 == 0:
             nome = os.path.basename(caminho) if caminho else "?"
             self.logger.debug(f"🔍 Verificando: {nome[:40]}...")
@@ -710,7 +556,10 @@ class MisaCleanerUI:
             
         self.result_count.config(text=f"({total})")
         
-        # Destacar no terminal
+        # 🌟 DESATIVA O EFEITO MATRIX
+        self._desativar_matrix_overlay()
+        
+        # Mensagem final
         self.logger.sucesso("═" * 60)
         self.logger.sucesso(f"🎯 VARREDURA CONCLUÍDA! {total} RESQUÍCIOS ENCONTRADOS")
         
@@ -729,6 +578,9 @@ class MisaCleanerUI:
         )
         self.btn_parar.config(state=tk.DISABLED)
         self.varrendo = False
+        
+        # 🌟 DESATIVA O EFEITO MATRIX
+        self._desativar_matrix_overlay()
         
     def deletar_selecionados(self):
         """Deleta todos os resquícios encontrados"""
@@ -765,7 +617,6 @@ class MisaCleanerUI:
                 deletados += 1
             else:
                 erros += 1
-                self.logger.erro(f"❌ {msg}")
                 
         # Limpar resultados
         self.resultados = []
@@ -809,17 +660,14 @@ class MisaCleanerUI:
         diag_window.configure(bg=self.cores['bg'])
         diag_window.minsize(600, 400)
         
-        # Centralizar
         diag_window.update_idletasks()
         x = (self.root.winfo_x() + self.root.winfo_width() // 2) - 350
         y = (self.root.winfo_y() + self.root.winfo_height() // 2) - 250
         diag_window.geometry(f"+{x}+{y}")
         
-        # Frame principal
         main_frame = tk.Frame(diag_window, bg=self.cores['bg'])
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=15)
         
-        # Título
         tk.Label(
             main_frame,
             text="📊 DIAGNÓSTICO DA VARREDURA",
@@ -828,7 +676,6 @@ class MisaCleanerUI:
             bg=self.cores['bg']
         ).pack(pady=(0, 10))
         
-        # Área de texto
         text_frame = tk.Frame(main_frame, bg=self.cores['bg'])
         text_frame.pack(fill=tk.BOTH, expand=True)
         
@@ -849,16 +696,8 @@ class MisaCleanerUI:
         text_widget.pack(fill=tk.BOTH, expand=True)
         scrollbar.config(command=text_widget.yview)
         
-        # Inserir diagnóstico com cores
         text_widget.insert('1.0', diagnostico)
         
-        # Colorir estatísticas
-        text_widget.tag_config('verde', foreground=self.cores['neon_verde'])
-        text_widget.tag_config('amarelo', foreground=self.cores['neon_amarelo'])
-        text_widget.tag_config('vermelho', foreground=self.cores['neon_vermelho'])
-        text_widget.tag_config('azul', foreground=self.cores['neon_azul'])
-        
-        # Botão fechar
         tk.Button(
             main_frame,
             text="FECHAR",
@@ -879,9 +718,8 @@ class MisaCleanerUI:
                 return
             self.scanner.parar()
             
-        # Parar animações
-        if hasattr(self, 'terminal') and self.terminal:
-            self.terminal.matrix_bg.parar()
+        # Desativa Matrix
+        self._desativar_matrix_overlay()
             
         # Aguardar thread
         if self.scanner_thread and self.scanner_thread.is_alive():
@@ -894,8 +732,6 @@ class MisaCleanerUI:
 def main():
     """Ponto de entrada principal"""
     root = tk.Tk()
-    
-    # Configurar scaling para HiDPI
     try:
         root.tk.call('tk', 'scaling', 1.5)
     except:

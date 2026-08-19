@@ -11,6 +11,8 @@ from scanner import Scanner
 
 matplotlib.use('TkAgg')  # Garante compatibilidade com Tkinter
 
+import os
+
 class MisaCleanerUI:
     def __init__(self, root):
         self.root = root

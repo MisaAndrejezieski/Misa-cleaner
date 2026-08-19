@@ -44,7 +44,10 @@ class Logger:
         self.logs: List[Dict[str, Any]] = []
         self.erros: List[str] = []
         self.avisos: List[str] = []
-        self.contadores = {nivel: 0 for nivel in vars(LogNivel).values() if not nivel.startswith('_')}
+        
+        # 🔧 CORRIGIDO: Usar lista explícita de níveis em vez de vars()
+        niveis = ['INFO', 'SUCESSO', 'AVISO', 'ERRO', 'CRITICO', 'DEBUG']
+        self.contadores = {nivel: 0 for nivel in niveis}
         
         # Estatísticas
         self.total_verificados = 0

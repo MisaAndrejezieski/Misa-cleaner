@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE (VS Code e PyCharm)
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+
+# Windows
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# Logs e dados gerados pelo programa
+*.log
+*.tmp
+*.temp
+temp/
+data/
+*.json.bak
+
+# Matplotlib (cache de fontes e gráficos)
+.matplotlib/
+.fontList.cache
+
+# Git (não subir arquivos de configuração do próprio git)
+.gitattributes
+.gitignore
+
+# Arquivos grandes ou binários desnecessários
+*.exe
+*.msi
+*.dll
+*.so
+*.dylib

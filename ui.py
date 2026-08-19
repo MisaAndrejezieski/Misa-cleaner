@@ -128,7 +128,6 @@ class MisaCleanerUI:
                 return
             self.scanner.parar()
         
-        # Para a thread se estiver viva
         if self.scanner_thread and self.scanner_thread.is_alive():
             self.scanner_thread.join(timeout=1)
             
@@ -140,44 +139,17 @@ class MisaCleanerUI:
         main_frame = tk.Frame(self.root, bg=self.cores['bg'])
         main_frame.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
         
-        # ===== BARRA DE TÍTULO CUSTOMIZADA =====
-        title_bar = tk.Frame(main_frame, bg='#0f0f1a', height=35)
-        title_bar.pack(fill=tk.X, side=tk.TOP)
-        title_bar.pack_propagate(False)
-        
-        # Bind para arrastar a janela pela barra de título
-        title_bar.bind('<Button-1>', self.iniciar_arraste)
-        title_bar.bind('<B1-Motion>', self.arrastar)
-        
-        tk.Label(
-            title_bar, 
-            text="MISA-CLEANER", 
-            font=('Consolas', 10, 'bold'),
-            fg=self.cores['neon_azul'],
-            bg='#0f0f1a'
-        ).pack(side=tk.LEFT, padx=10, pady=7)
-        
-        # Botões de controle da janela
-        btn_controles = tk.Frame(title_bar, bg='#0f0f1a')
-        btn_controles.pack(side=tk.RIGHT)
-        
-        tk.Button(btn_controles, text="─", command=self.minimizar_janela,
-                  bg='#0f0f1a', fg='white', relief=tk.FLAT, bd=0, font=('Arial', 12),
-                  activebackground='#2a2a3a', activeforeground='white', cursor='hand2').pack(side=tk.LEFT, padx=5)
-        tk.Button(btn_controles, text="□", command=self.maximizar_janela,
-                  bg='#0f0f1a', fg='white', relief=tk.FLAT, bd=0, font=('Arial', 10),
-                  activebackground='#2a2a3a', activeforeground='white', cursor='hand2').pack(side=tk.LEFT, padx=5)
-        tk.Button(btn_controles, text="✕", command=self.fechar,
-                  bg='#0f0f1a', fg='#ff3333', relief=tk.FLAT, bd=0, font=('Arial', 12),
-                  activebackground='#ff3333', activeforeground='white', cursor='hand2').pack(side=tk.LEFT, padx=5)
-        
         # ===== CONTEÚDO PRINCIPAL =====
         content_frame = tk.Frame(main_frame, bg=self.cores['bg'])
         content_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=10)
         
-        # ===== CABEÇALHO (Limpo e Elegante) =====
+        # ===== CABEÇALHO (Com arraste e botões flutuantes) =====
         header_frame = tk.Frame(content_frame, bg=self.cores['bg'])
         header_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        # Permite arrastar a janela clicando no cabeçalho
+        header_frame.bind('<Button-1>', self.iniciar_arraste)
+        header_frame.bind('<B1-Motion>', self.arrastar)
         
         tk.Label(
             header_frame,
@@ -195,7 +167,29 @@ class MisaCleanerUI:
             bg=self.cores['bg']
         ).pack(side=tk.LEFT, padx=15, pady=10)
         
-        # ===== BOTÕES =====
+        # ===== BOTÕES DE CONTROLE DA JANELA (Flutuantes no cabeçalho) =====
+        controle_frame = tk.Frame(header_frame, bg=self.cores['bg'])
+        controle_frame.pack(side=tk.RIGHT, padx=5)
+        
+        # Minimizar
+        tk.Button(controle_frame, text="─", command=self.minimizar_janela,
+                  bg='#0a0a0f', fg='#a0a0a0', relief=tk.FLAT, bd=0, font=('Arial', 12, 'bold'),
+                  activebackground='#2a2a3a', activeforeground='white', cursor='hand2'
+        ).pack(side=tk.LEFT, padx=2)
+        
+        # Maximizar
+        tk.Button(controle_frame, text="□", command=self.maximizar_janela,
+                  bg='#0a0a0f', fg='#a0a0a0', relief=tk.FLAT, bd=0, font=('Arial', 10, 'bold'),
+                  activebackground='#2a2a3a', activeforeground='white', cursor='hand2'
+        ).pack(side=tk.LEFT, padx=2)
+        
+        # Fechar
+        tk.Button(controle_frame, text="✕", command=self.fechar,
+                  bg='#0a0a0f', fg='#ff4444', relief=tk.FLAT, bd=0, font=('Arial', 12, 'bold'),
+                  activebackground='#ff4444', activeforeground='white', cursor='hand2'
+        ).pack(side=tk.LEFT, padx=2)
+        
+        # ===== BOTÕES DE AÇÃO =====
         btn_frame = tk.Frame(content_frame, bg=self.cores['bg'])
         btn_frame.pack(pady=10)
         
@@ -302,12 +296,9 @@ class MisaCleanerUI:
         
         if os.path.exists(caminho):
             try:
-                # Usa Popen (não bloqueante) para evitar travar o programa
                 if os.path.isfile(caminho):
-                    # Se for um arquivo, abre a pasta e seleciona ele
                     subprocess.Popen(['explorer', '/select,', caminho])
                 else:
-                    # Se for uma pasta, abre a pasta
                     subprocess.Popen(['explorer', caminho])
             except Exception as e:
                 messagebox.showerror("Erro", f"Não foi possível abrir o caminho:\n{e}")
@@ -326,7 +317,6 @@ class MisaCleanerUI:
         if self.varrendo:
             return
         
-        # Limpa a tabela anterior
         for item in self.tree.get_children():
             self.tree.delete(item)
             
@@ -454,7 +444,6 @@ class MisaCleanerUI:
         
         self.resultados = []
         self.btn_deletar.config(state=tk.DISABLED)
-        # Limpa a tabela
         for item in self.tree.get_children():
             self.tree.delete(item)
         self.adicionar_log("")

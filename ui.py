@@ -2,9 +2,7 @@ import os
 import random
 import subprocess
 import threading
-import time
 import tkinter as tk
-from datetime import datetime
 from tkinter import messagebox, ttk
 
 from scanner import Scanner
@@ -89,6 +87,10 @@ class MisaCleanerUI:
         self.varrendo = False
         self.scanner_thread = None
         
+        # Variáveis para arrastar a janela
+        self.x_inicio = 0
+        self.y_inicio = 0
+        
         self.setup_ui()
         
     def centralizar_janela(self):
@@ -120,10 +122,16 @@ class MisaCleanerUI:
             self.root.geometry(f"{self.root.winfo_screenwidth()}x{self.root.winfo_screenheight()}+0+0")
     
     def fechar(self):
+        """Fecha a aplicação com segurança, matando threads"""
         if self.varrendo:
             if not messagebox.askyesno("Sair", "Varredura em andamento. Deseja sair?"):
                 return
             self.scanner.parar()
+        
+        # Para a thread se estiver viva
+        if self.scanner_thread and self.scanner_thread.is_alive():
+            self.scanner_thread.join(timeout=1)
+            
         self.root.quit()
         self.root.destroy()
     
@@ -133,7 +141,7 @@ class MisaCleanerUI:
         main_frame.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
         
         # ===== BARRA DE TÍTULO CUSTOMIZADA =====
-        title_bar = tk.Frame(main_frame, bg='#0f0f1a', height=30)
+        title_bar = tk.Frame(main_frame, bg='#0f0f1a', height=35)
         title_bar.pack(fill=tk.X, side=tk.TOP)
         title_bar.pack_propagate(False)
         
@@ -147,7 +155,7 @@ class MisaCleanerUI:
             font=('Consolas', 10, 'bold'),
             fg=self.cores['neon_azul'],
             bg='#0f0f1a'
-        ).pack(side=tk.LEFT, padx=10, pady=5)
+        ).pack(side=tk.LEFT, padx=10, pady=7)
         
         # Botões de controle da janela
         btn_controles = tk.Frame(title_bar, bg='#0f0f1a')
@@ -238,7 +246,7 @@ class MisaCleanerUI:
         list_frame = tk.Frame(content_frame, bg=self.cores['bg'])
         list_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
         
-        tk.Label(list_frame, text="📋 RESULTADOS ENCONTRADOS (Duplo clique para abrir a pasta)", 
+        tk.Label(list_frame, text="📋 RESULTADOS ENCONTRADOS (Duplo clique para abrir)", 
                  font=('Consolas', 9), fg=self.cores['neon_amarelo'], bg=self.cores['bg']).pack(anchor=tk.W)
         
         # Treeview (Tabela)
@@ -257,7 +265,7 @@ class MisaCleanerUI:
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
         self.tree.pack(fill=tk.BOTH, expand=True)
         
-        # 🟢 Duplo clique para abrir o explorador de arquivos
+        # 🟢 Duplo clique para abrir o explorador de arquivos (NÃO BLOQUEANTE)
         self.tree.bind("<Double-1>", self.abrir_caminho_selecionado)
         
         # ===== STATUS =====
@@ -285,20 +293,24 @@ class MisaCleanerUI:
                 pass
     
     def abrir_caminho_selecionado(self, event):
-        """Abre o explorador de arquivos na pasta do item selecionado"""
+        """Abre o explorador de arquivos (NÃO BLOQUEIA A INTERFACE)"""
         selected = self.tree.selection()
         if not selected:
             return
         item = self.tree.item(selected[0])
-        caminho = item['values'][2]  # A coluna 2 é o caminho completo
+        caminho = item['values'][2]
         
         if os.path.exists(caminho):
-            # Abre a pasta no explorador do Windows e seleciona o arquivo/pasta
             try:
-                subprocess.run(['explorer', '/select,', caminho])
-            except:
-                # Fallback: abre apenas a pasta pai se o comando acima falhar
-                subprocess.run(['explorer', os.path.dirname(caminho)])
+                # Usa Popen (não bloqueante) para evitar travar o programa
+                if os.path.isfile(caminho):
+                    # Se for um arquivo, abre a pasta e seleciona ele
+                    subprocess.Popen(['explorer', '/select,', caminho])
+                else:
+                    # Se for uma pasta, abre a pasta
+                    subprocess.Popen(['explorer', caminho])
+            except Exception as e:
+                messagebox.showerror("Erro", f"Não foi possível abrir o caminho:\n{e}")
         else:
             messagebox.showwarning("Caminho não encontrado", f"O caminho não existe mais:\n{caminho}")
     
@@ -308,7 +320,6 @@ class MisaCleanerUI:
         nome = item.get('programa', '') if item.get('programa') else os.path.basename(item.get('caminho', ''))
         caminho = item.get('caminho', '')
         
-        # Insere na tabela
         self.tree.insert("", "end", values=(tipo, nome, caminho))
     
     def iniciar_varredura(self):

@@ -3,6 +3,7 @@ MISA-CLEANER - Interface Matrix Imersiva
 COM EFEITO MATRIX REAL EM TELA CHEIA DURANTE A VARREDURA
 """
 import os
+import subprocess  # 🔧 CORRIGIDO: importação adicionada
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
@@ -49,7 +50,7 @@ class MisaCleanerUI:
         self.varrendo = False
         self.scanner_thread: Optional[threading.Thread] = None
         
-        # 🌟 NOVO: Matrix Overlay (tela cheia durante varredura)
+        # Matrix Overlay (tela cheia durante varredura)
         self.matrix_overlay = None
         
         # Construir interface
@@ -71,9 +72,9 @@ class MisaCleanerUI:
         """Callback do logger para exibir na UI"""
         if hasattr(self, 'terminal') and self.terminal:
             destaque = nivel in [LogNivel.SUCESSO, LogNivel.CRITICO]
-            self.terminal.escrever(f">> {mensagem}", nivel, destaque)
+            self._escrever_terminal(f">> {mensagem}", nivel, destaque)
         
-        # 🌟 Se o Matrix Overlay estiver ativo, também escreve lá
+        # Se o Matrix Overlay estiver ativo, também escreve lá
         if self.matrix_overlay and self.matrix_overlay.winfo_exists():
             destaque = nivel in [LogNivel.SUCESSO, LogNivel.CRITICO]
             self.matrix_overlay.escrever(f">> {mensagem}", nivel, destaque)
@@ -396,7 +397,7 @@ class MisaCleanerUI:
             bg=self.cores['bg']
         ).pack(side=tk.RIGHT)
 
-    # ===== 🌟 NOVO: ATIVAÇÃO DO EFEITO MATRIX =====
+    # ===== ATIVAÇÃO DO EFEITO MATRIX =====
     
     def _ativar_matrix_overlay(self):
         """Ativa o efeito Matrix em tela cheia durante a varredura"""
@@ -410,9 +411,6 @@ class MisaCleanerUI:
         
         # Inicia a chuva
         self.matrix_overlay.iniciar_rain()
-        
-        # Esconde os outros elementos (opcional - mantém visíveis)
-        # self.main_frame.lower()  # Coloca atrás do overlay
         
         # Mensagem inicial no overlay
         self.matrix_overlay.escrever("╔══════════════════════════════════════════════════╗", "INFO")
@@ -489,7 +487,7 @@ class MisaCleanerUI:
         self.result_count.config(text="(0)")
         self.resultados = []
         
-        # 🌟 ATIVA O EFEITO MATRIX EM TELA CHEIA
+        # ATIVA O EFEITO MATRIX EM TELA CHEIA
         self._ativar_matrix_overlay()
         
         self.varrendo = True
@@ -556,7 +554,7 @@ class MisaCleanerUI:
             
         self.result_count.config(text=f"({total})")
         
-        # 🌟 DESATIVA O EFEITO MATRIX
+        # DESATIVA O EFEITO MATRIX
         self._desativar_matrix_overlay()
         
         # Mensagem final
@@ -579,7 +577,7 @@ class MisaCleanerUI:
         self.btn_parar.config(state=tk.DISABLED)
         self.varrendo = False
         
-        # 🌟 DESATIVA O EFEITO MATRIX
+        # DESATIVA O EFEITO MATRIX
         self._desativar_matrix_overlay()
         
     def deletar_selecionados(self):

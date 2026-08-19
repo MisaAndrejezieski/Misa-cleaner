@@ -1,3 +1,4 @@
+import os  # <-- IMPORTANTE: ADICIONADO AQUI
 import random
 import threading
 import time
@@ -318,9 +319,6 @@ class MisaCleanerUI:
     
     def executar_varredura(self):
         try:
-            # Progresso simulado - apenas para feedback visual
-            progresso_simulado = 0
-            
             resultados = self.scanner.escanear_tudo(
                 callback_progresso=lambda caminho: self.atualizar_progresso(caminho),
                 callback_resultado=lambda item: self.adicionar_resultado(item)
@@ -346,7 +344,7 @@ class MisaCleanerUI:
             self.root.after(0, lambda: self.progress_var.set(novo_progresso))
         
         # Mostra no terminal apenas a cada 20 pastas para não poluir
-        if random.random() < 0.05:  # 5% de chance de mostrar
+        if random.random() < 0.05:
             nome = os.path.basename(caminho) if caminho else "?"
             self.root.after(0, lambda: self.adicionar_log(f"   🔍 {nome[:40]}...", 'verde_escuro'))
     

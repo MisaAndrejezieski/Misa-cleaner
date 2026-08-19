@@ -61,8 +61,11 @@ class MisaCleanerUI:
     def __init__(self, root):
         self.root = root
         
-        # Remove bordas padrão
-        self.root.overrideredirect(True)
+        # ==========================================
+        # MUDANÇA PRINCIPAL: REMOVEMOS O overrideredirect
+        # Agora o Windows gerencia a barra de título e os botões
+        # ==========================================
+        self.root.title("MISA-CLEANER - Caçador de Resquícios Digitais")
         self.root.configure(bg='#0a0a0f')
         
         # Tamanho da janela
@@ -87,10 +90,6 @@ class MisaCleanerUI:
         self.varrendo = False
         self.scanner_thread = None
         
-        # Variáveis para arrastar a janela
-        self.x_inicio = 0
-        self.y_inicio = 0
-        
         self.setup_ui()
         
     def centralizar_janela(self):
@@ -101,28 +100,8 @@ class MisaCleanerUI:
         y = (self.root.winfo_screenheight() // 2) - (altura // 2)
         self.root.geometry(f'{largura}x{altura}+{x}+{y}')
     
-    # ===== CONTROLES DA JANELA (Arrastar, Minimizar, Fechar) =====
-    def iniciar_arraste(self, event):
-        self.x_inicio = event.x
-        self.y_inicio = event.y
-    
-    def arrastar(self, event):
-        x = self.root.winfo_x() + event.x - self.x_inicio
-        y = self.root.winfo_y() + event.y - self.y_inicio
-        self.root.geometry(f'+{x}+{y}')
-    
-    def minimizar_janela(self):
-        self.root.iconify()
-    
-    def maximizar_janela(self):
-        if self.root.winfo_width() == self.root.winfo_screenwidth():
-            self.root.geometry("1100x850")
-            self.centralizar_janela()
-        else:
-            self.root.geometry(f"{self.root.winfo_screenwidth()}x{self.root.winfo_screenheight()}+0+0")
-    
+    # ===== FECHAR COM SEGURANÇA =====
     def fechar(self):
-        """Fecha a aplicação com segurança, matando threads"""
         if self.varrendo:
             if not messagebox.askyesno("Sair", "Varredura em andamento. Deseja sair?"):
                 return
@@ -137,19 +116,11 @@ class MisaCleanerUI:
     # ===== CONSTRUÇÃO DA INTERFACE =====
     def setup_ui(self):
         main_frame = tk.Frame(self.root, bg=self.cores['bg'])
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=10)
         
-        # ===== CONTEÚDO PRINCIPAL =====
-        content_frame = tk.Frame(main_frame, bg=self.cores['bg'])
-        content_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=10)
-        
-        # ===== CABEÇALHO (Com arraste e botões flutuantes) =====
-        header_frame = tk.Frame(content_frame, bg=self.cores['bg'])
+        # ===== CABEÇALHO =====
+        header_frame = tk.Frame(main_frame, bg=self.cores['bg'])
         header_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        # Permite arrastar a janela clicando no cabeçalho
-        header_frame.bind('<Button-1>', self.iniciar_arraste)
-        header_frame.bind('<B1-Motion>', self.arrastar)
         
         tk.Label(
             header_frame,
@@ -167,30 +138,8 @@ class MisaCleanerUI:
             bg=self.cores['bg']
         ).pack(side=tk.LEFT, padx=15, pady=10)
         
-        # ===== BOTÕES DE CONTROLE DA JANELA (Flutuantes no cabeçalho) =====
-        controle_frame = tk.Frame(header_frame, bg=self.cores['bg'])
-        controle_frame.pack(side=tk.RIGHT, padx=5)
-        
-        # Minimizar
-        tk.Button(controle_frame, text="─", command=self.minimizar_janela,
-                  bg='#0a0a0f', fg='#a0a0a0', relief=tk.FLAT, bd=0, font=('Arial', 12, 'bold'),
-                  activebackground='#2a2a3a', activeforeground='white', cursor='hand2'
-        ).pack(side=tk.LEFT, padx=2)
-        
-        # Maximizar
-        tk.Button(controle_frame, text="□", command=self.maximizar_janela,
-                  bg='#0a0a0f', fg='#a0a0a0', relief=tk.FLAT, bd=0, font=('Arial', 10, 'bold'),
-                  activebackground='#2a2a3a', activeforeground='white', cursor='hand2'
-        ).pack(side=tk.LEFT, padx=2)
-        
-        # Fechar
-        tk.Button(controle_frame, text="✕", command=self.fechar,
-                  bg='#0a0a0f', fg='#ff4444', relief=tk.FLAT, bd=0, font=('Arial', 12, 'bold'),
-                  activebackground='#ff4444', activeforeground='white', cursor='hand2'
-        ).pack(side=tk.LEFT, padx=2)
-        
-        # ===== BOTÕES DE AÇÃO =====
-        btn_frame = tk.Frame(content_frame, bg=self.cores['bg'])
+        # ===== BOTÕES =====
+        btn_frame = tk.Frame(main_frame, bg=self.cores['bg'])
         btn_frame.pack(pady=10)
         
         btn_style = {
@@ -216,7 +165,7 @@ class MisaCleanerUI:
         self.btn_deletar.pack(side=tk.LEFT, padx=5)
         
         # ===== TERMINAL MATRIX =====
-        terminal_frame = tk.Frame(content_frame, bg=self.cores['bg'])
+        terminal_frame = tk.Frame(main_frame, bg=self.cores['bg'])
         terminal_frame.pack(fill=tk.BOTH, expand=True, pady=10)
         
         terminal_label = tk.Label(terminal_frame, text="╔══════════ TERMINAL MATRIX ══════════╗", font=('Consolas', 8), fg=self.cores['neon_roxo'], bg=self.cores['bg'])
@@ -236,8 +185,8 @@ class MisaCleanerUI:
         self.terminal.escrever_matrix(">> SISTEMA PRONTO. DIGITE 'INICIAR' PARA COMEÇAR.", 'verde_matrix')
         self.terminal.escrever_matrix(">> MISA-CLEANER V1.0 - CAÇADOR DE RESQUÍCIOS DIGITAIS", 'azul')
         
-        # ===== LISTA DE RESULTADOS (Tabela Clicável) =====
-        list_frame = tk.Frame(content_frame, bg=self.cores['bg'])
+        # ===== LISTA DE RESULTADOS =====
+        list_frame = tk.Frame(main_frame, bg=self.cores['bg'])
         list_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
         
         tk.Label(list_frame, text="📋 RESULTADOS ENCONTRADOS (Duplo clique para abrir)", 
@@ -259,15 +208,15 @@ class MisaCleanerUI:
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
         self.tree.pack(fill=tk.BOTH, expand=True)
         
-        # 🟢 Duplo clique para abrir o explorador de arquivos (NÃO BLOQUEANTE)
+        # Duplo clique para abrir o explorador de arquivos
         self.tree.bind("<Double-1>", self.abrir_caminho_selecionado)
         
         # ===== STATUS =====
-        self.status_label = tk.Label(content_frame, text="SISTEMA PRONTO.", font=('Consolas', 9), fg=self.cores['neon_verde'], bg=self.cores['bg'], anchor=tk.W)
+        self.status_label = tk.Label(main_frame, text="SISTEMA PRONTO.", font=('Consolas', 9), fg=self.cores['neon_verde'], bg=self.cores['bg'], anchor=tk.W)
         self.status_label.pack(fill=tk.X, pady=5)
         
         # ===== BARRA DE PROGRESSO =====
-        progress_frame = tk.Frame(content_frame, bg=self.cores['bg'])
+        progress_frame = tk.Frame(main_frame, bg=self.cores['bg'])
         progress_frame.pack(fill=tk.X, pady=5)
         
         self.progress_var = tk.DoubleVar()
@@ -287,7 +236,6 @@ class MisaCleanerUI:
                 pass
     
     def abrir_caminho_selecionado(self, event):
-        """Abre o explorador de arquivos (NÃO BLOQUEIA A INTERFACE)"""
         selected = self.tree.selection()
         if not selected:
             return
@@ -306,7 +254,6 @@ class MisaCleanerUI:
             messagebox.showwarning("Caminho não encontrado", f"O caminho não existe mais:\n{caminho}")
     
     def adicionar_resultado_tabela(self, item):
-        """Adiciona uma linha na tabela de resultados"""
         tipo = item.get('tipo', '').capitalize()
         nome = item.get('programa', '') if item.get('programa') else os.path.basename(item.get('caminho', ''))
         caminho = item.get('caminho', '')
@@ -452,6 +399,11 @@ class MisaCleanerUI:
 
 def main():
     root = tk.Tk()
+    # Garante que o ícone do programa seja o padrão do Tk (não usa pillow)
+    try:
+        root.tk.call('tk', 'scaling', 1.5) # Ajuste de escala para telas HiDPI
+    except:
+        pass
     app = MisaCleanerUI(root)
     root.mainloop()
 

@@ -96,66 +96,81 @@ class MisaCleanerUI:
         self._criar_status(self.main_frame)
         
     def _criar_header(self, parent):
-        """Cria o cabeçalho do programa"""
+        """Cria o cabeçalho compacto da central de varredura"""
         header_frame = tk.Frame(parent, bg=self.cores['bg'])
-        header_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        # Logo
-        logo_frame = tk.Frame(header_frame, bg=self.cores['bg'])
-        logo_frame.pack(side=tk.LEFT)
-        
-        titulo = tk.Label(
-            logo_frame,
-            text="MISA-CLEANER",
-            font=('Consolas', 28, 'bold'),
-            fg=self.cores['verde_matrix'],
-            bg=self.cores['bg']
-        )
-        titulo.pack(side=tk.LEFT)
-        
-        cursor = tk.Label(
-            logo_frame,
-            text="█",
-            font=('Consolas', 28, 'bold'),
-            fg=self.cores['verde_matrix'],
-            bg=self.cores['bg']
-        )
-        cursor.pack(side=tk.LEFT)
-        self._piscar_cursor(cursor)
-        
-        # Info
-        info_frame = tk.Frame(header_frame, bg=self.cores['bg'])
-        info_frame.pack(side=tk.LEFT, padx=20)
-        
+        header_frame.pack(fill=tk.X, pady=(0, 8))
+
+        accent = tk.Frame(header_frame, bg=self.cores['verde_matrix'], width=4)
+        accent.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 14))
+
+        intro = tk.Frame(header_frame, bg=self.cores['bg'])
+        intro.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
         tk.Label(
-            info_frame,
-            text="v3.0 • Caçador de Resquícios Digitais",
-            font=('Consolas', 10),
+            intro,
+            text="SYSTEM / SCAN CONSOLE",
+            font=('Consolas', 9, 'bold'),
             fg=self.cores['neon_verde'],
             bg=self.cores['bg']
         ).pack(anchor=tk.W)
-        
+
         tk.Label(
-            info_frame,
-            text="⚡ 3 Camadas de Análise • Modo Matrix",
+            intro,
+            text="Digital residue detection",
+            font=('Consolas', 17, 'bold'),
+            fg=self.cores['texto'],
+            bg=self.cores['bg']
+        ).pack(anchor=tk.W, pady=(2, 0))
+
+        tk.Label(
+            intro,
+            text="Three-layer analysis for files and duplicates",
             font=('Consolas', 9),
             fg=self.cores['texto_escuro'],
             bg=self.cores['bg']
-        ).pack(anchor=tk.W)
-        
-    def _piscar_cursor(self, widget):
-        """Animação de cursor piscando"""
-        if not hasattr(self, '_cursor_visible'):
-            self._cursor_visible = True
-            
-        self._cursor_visible = not self._cursor_visible
-        widget.config(fg=self.cores['verde_matrix'] if self._cursor_visible else self.cores['bg'])
-        self.root.after(500, lambda: self._piscar_cursor(widget))
+        ).pack(anchor=tk.W, pady=(3, 0))
+
+        status = tk.Frame(
+            header_frame,
+            bg=self.cores['bg_secundario'],
+            highlightbackground=self.cores['bg_terciario'],
+            highlightthickness=1,
+            padx=14,
+            pady=6
+        )
+        status.pack(side=tk.RIGHT, padx=(14, 0))
+
+        status_line = tk.Frame(status, bg=self.cores['bg_secundario'])
+        status_line.pack(anchor=tk.E)
+
+        tk.Label(
+            status_line,
+            text="●",
+            font=('Consolas', 10),
+            fg=self.cores['verde_matrix'],
+            bg=self.cores['bg_secundario']
+        ).pack(side=tk.LEFT, padx=(0, 6))
+
+        tk.Label(
+            status_line,
+            text="READY",
+            font=('Consolas', 9, 'bold'),
+            fg=self.cores['neon_verde'],
+            bg=self.cores['bg_secundario']
+        ).pack(side=tk.LEFT)
+
+        tk.Label(
+            status,
+            text="3 LAYERS  /  MATRIX MODE",
+            font=('Consolas', 8),
+            fg=self.cores['texto_escuro'],
+            bg=self.cores['bg_secundario']
+        ).pack(anchor=tk.E, pady=(5, 0))
         
     def _criar_terminal(self, parent):
         """Cria o terminal Matrix (OCUPA 65% DA TELA)"""
         terminal_container = tk.Frame(parent, bg=self.cores['bg'])
-        terminal_container.pack(fill=tk.BOTH, expand=True, pady=10)
+        terminal_container.pack(fill=tk.BOTH, expand=True, pady=6)
         
         terminal_wrapper = tk.Frame(
             terminal_container,
@@ -168,7 +183,7 @@ class MisaCleanerUI:
         
         # Header do terminal
         terminal_header = tk.Frame(terminal_wrapper, bg=self.cores['bg_secundario'])
-        terminal_header.pack(fill=tk.X, padx=10, pady=5)
+        terminal_header.pack(fill=tk.X, padx=10, pady=3)
         
         tk.Label(
             terminal_header,
@@ -201,7 +216,8 @@ class MisaCleanerUI:
             state='normal',
             spacing1=1,
             spacing2=1,
-            spacing3=1
+            spacing3=1,
+            height=10
         )
         self.terminal.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
@@ -232,15 +248,15 @@ class MisaCleanerUI:
     def _criar_botoes(self, parent):
         """Cria os botões de controle"""
         btn_frame = tk.Frame(parent, bg=self.cores['bg'])
-        btn_frame.pack(pady=10)
+        btn_frame.pack(pady=6)
         
         btn_style = {
             'font': ('Consolas', 10, 'bold'),
             'bg': self.cores['bg_secundario'],
             'fg': self.cores['neon_verde'],
             'relief': tk.FLAT,
-            'padx': 25,
-            'pady': 10,
+            'padx': 14,
+            'pady': 7,
             'cursor': 'hand2',
             'borderwidth': 1,
             'highlightbackground': self.cores['bg_terciario'],

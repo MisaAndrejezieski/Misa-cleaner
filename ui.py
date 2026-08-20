@@ -403,8 +403,6 @@ class MisaCleanerUI:
         
         # 🌟 CRIA APENAS A CHUVA
         self.matrix = MatrixRain(self.root)
-        self.matrix.iniciar()
-        
         self.root.update()
         
     def _desativar_matrix(self):

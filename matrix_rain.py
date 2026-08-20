@@ -17,6 +17,7 @@ class MatrixRain(tk.Canvas):
         super().__init__(parent, bg='#000000', highlightthickness=0)
         self.animando = True
         self.colunas = []
+        self.quadro = 0
         self.place(x=0, y=0, relwidth=1, relheight=1)
         self._criar_colunas()
         self._animar()
@@ -34,7 +35,8 @@ class MatrixRain(tk.Canvas):
                 'vel': random.uniform(4.0, 8.0),
                 'tam': tamanho,
                 'chars': [random.choice(self.CARACTERES) for _ in range(tamanho)],
-                'itens': []
+                'itens': [],
+                'visiveis': [False] * 30
             })
 
             col = self.colunas[-1]
@@ -62,6 +64,7 @@ class MatrixRain(tk.Canvas):
     def _animar(self):
         if not self.animando:
             return
+        self.quadro += 1
         largura = max(self.winfo_width(), 800)
         altura = max(self.winfo_height(), 600)
 
@@ -73,18 +76,33 @@ class MatrixRain(tk.Canvas):
                 col['vel'] = random.uniform(4.0, 8.0)
                 col['tam'] = random.randint(10, 30)
                 col['chars'] = [random.choice(self.CARACTERES) for _ in range(col['tam'])]
+                col['visiveis'] = [False] * 30
+                for item in col['itens']:
+                    self.itemconfigure(item, state=tk.HIDDEN)
 
             for i, item in enumerate(col['itens']):
                 y = col['y'] - (i * 8)
                 if y < -10 or y > altura:
-                    self.itemconfigure(item, state=tk.HIDDEN)
+                    if col['visiveis'][i]:
+                        self.itemconfigure(item, state=tk.HIDDEN)
+                        col['visiveis'][i] = False
                     continue
                 if i >= col['tam']:
-                    self.itemconfigure(item, state=tk.HIDDEN)
+                    if col['visiveis'][i]:
+                        self.itemconfigure(item, state=tk.HIDDEN)
+                        col['visiveis'][i] = False
                     continue
 
-                self.coords(item, col['x'], y)
-                self.itemconfigure(item, text=col['chars'][i], state=tk.NORMAL)
+                if not col['visiveis'][i]:
+                    self.coords(item, col['x'], y)
+                    self.itemconfigure(item, text=col['chars'][i], state=tk.NORMAL)
+                    col['visiveis'][i] = True
+                else:
+                    self.move(item, 0, col['vel'])
+
+                if self.quadro % 4 == 0 and random.random() < 0.04:
+                    col['chars'][i] = random.choice(self.CARACTERES)
+                    self.itemconfigure(item, text=col['chars'][i])
 
         self.after(25, self._animar)
 

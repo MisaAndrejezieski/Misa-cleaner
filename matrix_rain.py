@@ -4,6 +4,10 @@ import tkinter as tk
 
 class MatrixRain(tk.Canvas):
     CARACTERES = [
+        'A','B','C','D','E','F','G','H','I','J','K','L','M',
+        'N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
+        'a','b','c','d','e','f','g','h','i','j','k','l','m',
+        'n','o','p','q','r','s','t','u','v','w','x','y','z',
         '0','1','2','3','4','5','6','7','8','9',
         '日','本','語','の','文','字','を','使','っ','て',
         '!','@','#','$','%','&','*','+','=','~'
@@ -22,12 +26,12 @@ class MatrixRain(tk.Canvas):
         largura = max(self.winfo_width(), 800)
         altura = max(self.winfo_height(), 600)
         self.colunas = []
-        for _ in range(largura // 10):
+        for _ in range(largura // 8):
             tamanho = random.randint(10, 30)
             self.colunas.append({
                 'x': random.randint(0, largura),
                 'y': random.randint(-altura, 0),
-                'vel': random.uniform(2.5, 5.5),
+                'vel': random.uniform(4.0, 8.0),
                 'tam': tamanho,
                 'chars': [random.choice(self.CARACTERES) for _ in range(tamanho)],
                 'itens': []
@@ -66,12 +70,12 @@ class MatrixRain(tk.Canvas):
             if col['y'] > altura + 50:
                 col['y'] = random.randint(-100, -20)
                 col['x'] = random.randint(0, largura)
-                col['vel'] = random.uniform(2.5, 5.5)
+                col['vel'] = random.uniform(4.0, 8.0)
                 col['tam'] = random.randint(10, 30)
                 col['chars'] = [random.choice(self.CARACTERES) for _ in range(col['tam'])]
 
             for i, item in enumerate(col['itens']):
-                y = col['y'] - (i * 11)
+                y = col['y'] - (i * 8)
                 if y < -10 or y > altura:
                     self.itemconfigure(item, state=tk.HIDDEN)
                     continue
@@ -82,7 +86,7 @@ class MatrixRain(tk.Canvas):
                 self.coords(item, col['x'], y)
                 self.itemconfigure(item, text=col['chars'][i], state=tk.NORMAL)
 
-        self.after(33, self._animar)
+        self.after(25, self._animar)
 
     def parar(self):
         self.animando = False

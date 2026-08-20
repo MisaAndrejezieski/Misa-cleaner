@@ -21,7 +21,7 @@ class MisaCleanerUI:
         self.root = root
         
         # Configurar janela
-        self.root.title("MISA-CLEANER - Caçador de Resquícios Digitais")
+        self.root.title("MISA-CLEANER - Resquícios Digitais")
         self.root.configure(bg='#0a0a0f')
         self.root.geometry("1200x900")
         self.root.minsize(900, 700)

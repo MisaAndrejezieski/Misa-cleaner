@@ -512,8 +512,8 @@ class MisaCleanerUI:
             self.root.after(0, self._finalizar_varredura)
             
     def _atualizar_progresso(self, caminho: str):
-        """Atualiza o progresso (callback da thread)"""
-        pass  # NÃO FAZ NADA - SÓ A CHUVA!
+        """Mantém o callback disponível sem poluir a interface durante a chuva."""
+        return
             
     def _adicionar_resultado(self, item: Dict):
         """Adiciona resultado (callback da thread)"""
@@ -526,11 +526,24 @@ class MisaCleanerUI:
         self.btn_parar.config(state=tk.DISABLED)
         
         total = len(self.resultados)
+        quantidade_resquicios = len(
+            [item for item in self.resultados if item.get('tipo') == 'resquicio']
+        )
+        quantidade_obsoletos = len(
+            [item for item in self.resultados if item.get('tipo') == 'obsoleto']
+        )
+        quantidade_duplicados = len(
+            [item for item in self.resultados if item.get('tipo') == 'duplicado']
+        )
         
         if total > 0:
             self.btn_deletar.config(state=tk.NORMAL)
             self.status_label.config(
-                text=f"✅ VARREDURA CONCLUÍDA - {total} RESQUÍCIOS ENCONTRADOS",
+                text=(
+                    f"✅ VARREDURA CONCLUÍDA - {total} ITENS ENCONTRADOS "
+                    f"(R:{quantidade_resquicios} O:{quantidade_obsoletos} "
+                    f"D:{quantidade_duplicados})"
+                ),
                 fg=self.cores['neon_verde']
             )
         else:
@@ -544,12 +557,8 @@ class MisaCleanerUI:
         # 🌟 DESATIVA A CHUVA MATRIX E RESTAURA A INTERFACE
         self._desativar_matrix()
         
-        # Mensagem final no terminal
-        self.logger.sucesso("═" * 60)
-        self.logger.sucesso(f"🎯 VARREDURA CONCLUÍDA! {total} RESQUÍCIOS ENCONTRADOS")
-        
         if total == 0:
-            self.logger.sucesso("🧹 SISTEMA LIMPO! NENHUM FANTASMA DIGITAL ENCONTRADO.")
+            self.logger.sucesso("🧹 SISTEMA LIMPO! NENHUM ITEM ENCONTRADO.")
             
     def parar_varredura(self):
         """Para a varredura em andamento"""
@@ -575,7 +584,7 @@ class MisaCleanerUI:
             
         if not messagebox.askyesno(
             "Confirmar Exclusão",
-            f"⚠️ Tem certeza que deseja deletar TODOS os {len(self.resultados)} resquícios encontrados?\n\n"
+            f"⚠️ Tem certeza que deseja deletar TODOS os {len(self.resultados)} itens encontrados?\n\n"
             "Esta ação não pode ser desfeita!"
         ):
             return

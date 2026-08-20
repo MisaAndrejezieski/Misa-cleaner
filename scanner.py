@@ -858,7 +858,7 @@ class Scanner:
             
             self.logger.info("")
             self.logger.info("═" * 50)
-            self.logger.sucesso(f"🎯 VARREDURA CONCLUÍDA! {total} RESQUÍCIOS ENCONTRADOS")
+            self.logger.sucesso(f"🎯 VARREDURA CONCLUÍDA! {total} ITENS ENCONTRADOS")
             self.logger.info(f"   📊 Verificados: {self.total_verificados} itens")
             self.logger.info(f"   🔴 Resquícios: {len(self.resultados['resquicios'])}")
             self.logger.info(f"   📂 Obsoletos: {len(self.resultados['obsoletos'])}")

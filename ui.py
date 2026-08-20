@@ -187,7 +187,7 @@ class MisaCleanerUI:
         
         tk.Label(
             terminal_header,
-            text="══ ========= ══",
+            text=" ",
             font=('Consolas', 9),
             fg=self.cores['neon_roxo'],
             bg=self.cores['bg_secundario']

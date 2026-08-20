@@ -12,11 +12,10 @@ MELHORIAS:
 import hashlib
 import os
 import shutil
-import subprocess
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from logger import Logger, LogNivel
+from logger import Logger
 
 
 class Scanner:

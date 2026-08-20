@@ -1,17 +1,22 @@
 import tkinter as tk
 
-from matrix_rain import MatrixFullscreen
+from matrix_rain import MatrixRain
 
-root = tk.Tk()
-root.geometry("800x600")
-root.title("TESTE MATRIX")
 
-# Inicia a Matrix
-matrix = MatrixFullscreen(root)
-matrix.iniciar()
+def testar_matrix():
+	root = tk.Tk()
+	root.geometry("800x600")
+	root.withdraw()
 
-# Fecha após 5 segundos
-root.after(5000, lambda: matrix.parar())
-root.after(5000, root.destroy)
+	matrix = MatrixRain(root)
+	assert matrix.colunas
 
-root.mainloop()
+	root.update()
+	matrix.parar()
+	matrix.destroy()
+	root.destroy()
+
+
+if __name__ == "__main__":
+	testar_matrix()
+	print("Teste Matrix aprovado")

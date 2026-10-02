@@ -1,2 +1,11 @@
-# MISA-CLEANER - Dependências
-# Nenhuma dependência externa necessária além da biblioteca padrão Python
+# MISA-CLEANER - Dependências de Runtime
+# Nenhuma dependência externa necessária.
+# O projeto usa apenas a biblioteca padrão do Python:
+#   - tkinter (interface gráfica)
+#   - threading (varredura em background)
+#   - hashlib (cálculo de hash para duplicados)
+#   - shutil, os, sys, datetime, typing
+#
+# Requisitos do sistema:
+#   - Python 3.9 ou superior
+#   - Tkinter (já vem com Python no Windows)

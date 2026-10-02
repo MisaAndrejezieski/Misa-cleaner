@@ -1,0 +1,7 @@
+# MISA-CLEANER - Dependências de Desenvolvimento
+# Use apenas se você quiser rodar os testes automatizados.
+
+-r requirements.txt
+
+# Testes
+pytest>=7.0.0
